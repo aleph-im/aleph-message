@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IntelliJ
+/.idea
+
+# Test files
+/aleph_message/tests/test_messages/
