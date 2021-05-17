@@ -1,4 +1,5 @@
 import json
+import os.path
 from os import listdir
 from os.path import join, isdir
 from pprint import pprint
@@ -7,10 +8,15 @@ import pytest as pytest
 import requests
 from pydantic import ValidationError
 
-from aleph_message.models import MessagesResponse, Message
+from aleph_message.models import MessagesResponse, Message, ProgramMessage
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
+
+HASHES_TO_IGNORE = (
+    "2fe5470ebcc5b6168b778ca3baadfd1618dc3acdb0690478760d21ff24b03164",
+    "1c0ce828b272fd9929e1dd6f665a4f845110b72a6aba74daa84a17e89da3718c",
+)
 
 
 def test_message_response_aggregate():
@@ -46,12 +52,21 @@ def test_messages_last_page():
     data_dict = response.json()
 
     for message_dict in data_dict["messages"]:
+        if message_dict["item_hash"] in HASHES_TO_IGNORE:
+            continue
         try:
             message = Message(**message_dict)
             assert message
         except:
-            pprint(message_dict)
             raise
+
+
+def test_message_machine():
+    path = os.path.abspath(os.path.join(__file__, "../messages/machine.json"))
+    with open(path) as fd:
+        message_raw = json.load(fd)
+
+    assert ProgramMessage(**message_raw)
 
 
 @pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")
