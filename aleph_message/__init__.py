@@ -1,1 +1,1 @@
-from .models import Message, MessagesResponse
+from .models import BaseMessage, MessagesResponse

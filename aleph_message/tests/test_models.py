@@ -45,7 +45,7 @@ def test_messages_last_page():
     response.raise_for_status()
     data_dict = response.json()
 
-    for message_dict in data_dict['messages']:
+    for message_dict in data_dict["messages"]:
         try:
             message = Message(**message_dict)
             assert message
@@ -54,13 +54,12 @@ def test_messages_last_page():
             raise
 
 
-@pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH),
-                    reason="No file on disk to test")
+@pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")
 def test_messages_from_disk():
     for messages_page in listdir(MESSAGES_STORAGE_PATH):
         with open(join(MESSAGES_STORAGE_PATH, messages_page)) as page_fd:
             data_dict = json.load(page_fd)
-        for message_dict in data_dict['messages']:
+        for message_dict in data_dict["messages"]:
             try:
                 message = Message(**message_dict)
                 assert message
