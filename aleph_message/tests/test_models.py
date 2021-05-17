@@ -25,6 +25,8 @@ def test_message_response_post():
     path = "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b&chain=ETH&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
+    # pprint(data_dict)
+
     response = MessagesResponse(**data_dict)
     assert response
 
