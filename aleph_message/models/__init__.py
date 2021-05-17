@@ -4,7 +4,10 @@ from hashlib import sha256
 from json import JSONDecodeError
 from typing import List, Dict, Any, Optional, Union, Literal
 
-from pydantic import BaseModel, Extra, Field, AnyUrl, validator
+from pydantic import BaseModel, Extra, Field, validator
+
+from aleph_message.models.abstract import BaseContent
+from .program import ProgramContent
 
 
 class Chain(str, Enum):
@@ -29,6 +32,7 @@ class MessageType(str, Enum):
     post = "POST"
     aggregate = "AGGREGATE"
     store = "STORE"
+    program = "PROGRAM"
 
 
 class ItemType(str, Enum):
@@ -79,15 +83,6 @@ class MessageConfirmation(BaseModel):
 
 class AggregateContentKey(BaseModel):
     name: str
-
-    class Config:
-        extra = Extra.forbid
-
-
-class BaseContent(BaseModel):
-    "Base template for message content"
-    address: str
-    time: float
 
     class Config:
         extra = Extra.forbid
@@ -153,7 +148,6 @@ class BaseMessage(BaseModel):
     confirmed: Optional[bool] = Field(
         description="Indicates that the message has been confirmed on a blockchain"
     )
-    content: BaseContent = Field(description="Content of the message, ready to be used")
     signature: str = Field(
         description="Cryptographic signature of the message by the sender"
     )
@@ -169,6 +163,7 @@ class BaseMessage(BaseModel):
         description="Hashing algorithm used to compute 'item_hash'"
     )
     item_hash: str = Field(description="Hash of the content (sha256 by default)")
+    content: BaseContent = Field(description="Content of the message, ready to be used")
 
     @validator("item_content")
     def check_item_content(cls, v: Optional[str], values):
@@ -199,18 +194,21 @@ class BaseMessage(BaseModel):
 
             computed_hash: str = sha256(item_content.encode()).hexdigest()
             if v != computed_hash:
-                raise ValueError(f"'item_hash' do not match 'sha256(item_content)'")
+                raise ValueError(f"'item_hash' do not match 'sha256(item_content)'"
+                                 f", expecting {computed_hash}")
         elif item_type == ItemType.ipfs:
             # TODO: CHeck that the hash looks like an IPFS multihash
             pass
         else:
             assert item_type == ItemType.storage
+        return v
 
     @validator("confirmed")
     def check_confirmed(cls, v, values):
         confirmations = values["confirmations"]
         if v != bool(confirmations):
             raise ValueError("Message cannot be 'confirmed' without 'confirmations'")
+        return v
 
     class Config:
         extra = Extra.forbid
@@ -235,12 +233,27 @@ class StoreMessage(BaseMessage):
     content: StoreContent
 
 
+class ProgramMessage(BaseMessage):
+    type: Literal[MessageType.program]
+    content: ProgramContent
+
+    @validator("content")
+    def check_content(cls, v, values):
+        item_type = values["item_type"]
+        if item_type == ItemType.inline:
+            item_content = json.loads(values["item_content"])
+            if v.dict() != item_content:
+                raise ValueError("Content and item_content differ")
+        return v
+
+
 def Message(**message_dict: Dict):
     "Returns the message class corresponding to the type of message."
     for raw_type, message_class in {
         MessageType.post: PostMessage,
         MessageType.aggregate: AggregateMessage,
         MessageType.store: StoreMessage,
+        MessageType.program: ProgramMessage,
     }.items():
         if message_dict["type"] == raw_type:
             return message_class(**message_dict)
@@ -250,7 +263,7 @@ def Message(**message_dict: Dict):
 
 class MessagesResponse(BaseModel):
     "Response from an Aleph node API."
-    messages: List[Union[PostMessage, AggregateMessage, StoreMessage]]
+    messages: List[Union[PostMessage, AggregateMessage, StoreMessage, ProgramMessage]]
     pagination_page: int
     pagination_total: int
     pagination_per_page: int
