@@ -38,47 +38,6 @@ class ItemType(str, Enum):
     ipfs = "ipfs"
 
 
-class PostContentType(str, Enum):
-    "User-generated 'content-type' for POST messages"
-    xchain_swap = "xchain-swap"
-    staking_rewards_distribution = "staking-rewards-distribution"
-    amend = "amend"
-    note = "note"
-    corechan_operation = "corechan-operation"
-    file = "file"
-    nfts = "nfts"
-    chat = "chat"
-    folder = "folder"
-    quartz_archetype = "quartz_archetype"
-    messages = "messages"
-    channel_memberships = "channel_memberships"
-    comment = "comment"
-    blog_pers = "blog_pers"
-    channels = "channels"
-    nft_snapshot = "nft-snapshot"
-    pancake_simple = "pancake-simple"
-    pancake = "pancake"
-    incentive_distribution = "incentive-distribution"
-    vm_function = "vm-function"
-    code = "code"
-    timeline_post = "timeline-post"
-    account = "account"
-    media = "media"
-    mytype = "mytype"
-    scoring = "scoring"
-    my_chat = "my_chat"
-    dre_market_propfile = "dre.market/profile"
-    evidenceUrl = "evidenceUrl"
-    authorization = "authorization"
-    did_verified = "did_verified"
-    did_archive = "did_archive"
-    testtype = "testtype"
-    testmsg = "testmsg"
-    doc = "doc"
-    document = "document"
-    test = "test"
-
-
 class MongodbId(BaseModel):
     "PyAleph returns an internal MongoDB id"
     oid: str = Field(alias="$oid")
@@ -159,9 +118,9 @@ class BaseContent(BaseModel):
 
 class PostContent(BaseContent):
     "Content of a POST message"
-    content: Optional[Any]
+    content: Optional[Any] = Field(description="User-generated content of a POST message")
     ref: Optional[Union[str, ChainRef]]
-    type: PostContentType
+    type: str = Field(description="User-generated 'content-type' of a POST message")
 
     class Config:
         extra = Extra.forbid
