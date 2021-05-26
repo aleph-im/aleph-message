@@ -1,4 +1,4 @@
-# Aleph.im BaseMessage Specification
+# Aleph.im Message Specification
 
 This library aims to provide an easy way to create, update and validate 
 messages from Aleph.im.
@@ -18,13 +18,13 @@ the client library [aleph-client](https://github.com/aleph-im/aleph-client).
 
 ```python
 import requests
-from aleph_message import BaseMessage
+from aleph_message import Message
 from pydantic import ValidationError
 
 message_dict = requests.get(ALEPH_API_SERVER + "/api/v0/messages.json?hashes=...").json()
 
 try:
-    message = BaseMessage(**message_dict)
+    message = Message(**message_dict)
     print(message.sender)
 except ValidationError as e:
     print(e.json())
