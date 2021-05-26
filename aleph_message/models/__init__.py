@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Union, Literal
 
 from pydantic import BaseModel, Extra, Field, validator
 
-from aleph_message.models.abstract import BaseContent
+from .abstract import BaseContent
 from .program import ProgramContent
 
 

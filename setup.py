@@ -13,10 +13,11 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 with open('README.md') as file:
     long_description = file.read()
 
-setup(name='Aleph Message',
-      version='0.0.1',
+setup(name='aleph-message',
+      version='0.1.1',
       description='Aleph.im message specification ',
       long_description=long_description,
+      long_description_content_type='text/markdown',
       author='Hugo Herter',
       author_email='git@hugoherter.com',
       url='https://github.com/aleph-im/aleph-message',
@@ -28,8 +29,9 @@ setup(name='Aleph Message',
       license='MIT',
       platform='any',
       keywords="aleph.im message validation specification",
-      classifiers=['Development Status :: 3 - Alpha',
+      classifiers=['Development Status :: 4 - Beta',
                    'Programming Language :: Python :: 3',
                    'Intended Audience :: Developers',
+                   'Topic :: System :: Distributed Computing',
                    ],
       )
