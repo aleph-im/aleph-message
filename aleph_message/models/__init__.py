@@ -2,11 +2,12 @@ import json
 from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
-from typing import List, Dict, Any, Optional, Union, Literal
+from typing import List, Dict, Any, Optional, Union
+from typing_extensions import Literal
 
 from pydantic import BaseModel, Extra, Field, validator
 
-from aleph_message.models.abstract import BaseContent
+from .abstract import BaseContent
 from .program import ProgramContent
 
 
