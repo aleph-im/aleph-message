@@ -3,7 +3,10 @@ from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from typing import List, Dict, Any, Optional, Union
-from typing_extensions import Literal
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 from pydantic import BaseModel, Extra, Field, validator
 
