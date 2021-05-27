@@ -56,7 +56,7 @@ class FunctionRuntime(HashableModel):
     comment: str
 
 
-class ProgramContent(BaseContent, HashableModel):
+class ProgramContent(HashableModel, BaseContent):
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
     code: CodeContent = Field(description="Code to execute")
