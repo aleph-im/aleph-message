@@ -66,7 +66,10 @@ def test_message_machine():
     with open(path) as fd:
         message_raw = json.load(fd)
 
-    assert ProgramMessage(**message_raw)
+    message = ProgramMessage(**message_raw)
+    assert message
+
+    assert hash(message.content)
 
 
 @pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")
