@@ -1,9 +1,17 @@
 from pydantic import BaseModel, Extra
 
 
+def list_to_tuple(obj):
+    """Convert a list to a tuple (hashable), ignore the rest."""
+    if isinstance(obj, list):
+        return tuple(obj)
+    return obj
+
+
 class HashableModel(BaseModel):
     def __hash__(self):
-        return hash(self.__class__) + hash(tuple(self.__dict__.values()))
+        values = tuple(list_to_tuple(value) for value in self.__dict__.values())
+        return hash(self.__class__) + hash(values)
 
 
 class BaseContent(BaseModel):

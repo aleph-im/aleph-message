@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import Field
 
@@ -56,6 +56,12 @@ class FunctionRuntime(HashableModel):
     comment: str
 
 
+class MachineVolume(HashableModel):
+    mount: str
+    ref: str
+    use_latest: bool = True
+
+
 class ProgramContent(HashableModel, BaseContent):
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
@@ -67,6 +73,9 @@ class ProgramContent(HashableModel, BaseContent):
     resources: MachineResources = Field("System resources required")
     runtime: FunctionRuntime = Field(
         "Execution runtime (rootfs with Python interpreter)"
+    )
+    volumes: List[MachineVolume] = Field(
+        "Volumes to mount on the filesystem"
     )
     replaces: Optional[str] = Field(
         description="Previous version to replace. Must be signed by the same address"
