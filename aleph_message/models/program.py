@@ -43,6 +43,7 @@ class FunctionEnvironment(HashableModel):
     reproducible: bool = False
     internet: bool = False
     aleph_api: bool = False
+    shared_cache: bool = False
 
 
 class MachineResources(HashableModel):
