@@ -9,6 +9,7 @@ from .abstract import BaseContent, HashableModel
 class Encoding(str, Enum):
     plain = "plain"
     zip = "zip"
+    squashfs = "squashfs"
 
 
 class MachineType(str, Enum):
