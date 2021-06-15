@@ -69,15 +69,17 @@ class ProgramContent(HashableModel, BaseContent):
     code: CodeContent = Field(description="Code to execute")
     data: Optional[DataContent] = Field(description="Data to use during computation")
     export: Optional[Export] = Field(description="Data to export after computation")
-    on: FunctionTriggers = Field("Signals that trigger an execution")
-    environment: FunctionEnvironment = Field("Properties of the execution environment")
-    resources: MachineResources = Field("System resources required")
+    on: FunctionTriggers = Field(description="Signals that trigger an execution")
+    environment: FunctionEnvironment = Field(description="Properties of the execution environment")
+    resources: MachineResources = Field(description="System resources required")
     runtime: FunctionRuntime = Field(
-        "Execution runtime (rootfs with Python interpreter)"
+        description="Execution runtime (rootfs with Python interpreter)"
     )
-    volumes: List[MachineVolume] = Field(
-        "Volumes to mount on the filesystem"
+    volumes: Optional[List[MachineVolume]] = Field(
+        default=None,
+        description="Volumes to mount on the filesystem"
     )
     replaces: Optional[str] = Field(
+        default=None,
         description="Previous version to replace. Must be signed by the same address"
     )
