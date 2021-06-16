@@ -76,8 +76,8 @@ class ProgramContent(HashableModel, BaseContent):
     runtime: FunctionRuntime = Field(
         description="Execution runtime (rootfs with Python interpreter)"
     )
-    volumes: Optional[List[MachineVolume]] = Field(
-        default=None,
+    volumes: List[MachineVolume] = Field(
+        default=[],
         description="Volumes to mount on the filesystem"
     )
     replaces: Optional[str] = Field(
