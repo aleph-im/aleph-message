@@ -246,7 +246,12 @@ class ProgramMessage(BaseMessage):
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             item_content = json.loads(values["item_content"])
-            if v.dict() != item_content:
+            if v.dict(exclude_none=True) != item_content:
+                # Print differences
+                vdict = v.dict()
+                for key, value in item_content.items():
+                    if vdict[key] != value:
+                        print(f"{key}: {vdict[key]} != {value}")
                 raise ValueError("Content and item_content differ")
         return v
 
