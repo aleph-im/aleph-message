@@ -1,7 +1,9 @@
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Union
 
-from pydantic import Field
+from pydantic import Field, Extra
+from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
 
@@ -58,10 +60,45 @@ class FunctionRuntime(HashableModel):
     comment: str
 
 
-class MachineVolume(HashableModel):
+class AbstractVolume(HashableModel, ABC):
+    comment: Optional[str]
     mount: str
+
+    @abstractmethod
+    def is_read_only(self): ...
+
+    class Config:
+        extra = Extra.forbid
+
+
+class ImmutableVolume(AbstractVolume):
     ref: str
     use_latest: bool = True
+
+    def is_read_only(self):
+        return True
+
+
+class EphemeralVolume(AbstractVolume):
+    ephemeral: Literal[True] = True
+
+    def is_read_only(self):
+        return False
+
+
+class VolumePersistence(str, Enum):
+    host = "host"
+    store = "store"
+
+
+class PersistentVolume(AbstractVolume):
+    persistence: VolumePersistence
+
+    def is_read_only(self):
+        return False
+
+
+MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]
 
 
 class ProgramContent(HashableModel, BaseContent):

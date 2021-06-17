@@ -3,7 +3,7 @@
         "$oid": "6080402d7f44efefd611dc1e"
     },
     "chain": "ETH",
-    "item_hash": "46d786c4a0419451582276575e433e8bc0b5c86753651d1749c202609a49c563",
+    "item_hash": "94cd578c9118792a918cc3baa6ed87026331d6ea4aa0d1610f1cd494299495f1",
     "sender": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
     "type": "PROGRAM",
     "channel": "Fun-dApps",
@@ -39,9 +39,25 @@
         },
         "volumes": [
             {
+                "comment": "Python libraries. Read-only since a 'ref' is specified.",
                 "mount": "/opt/venv",
                 "ref": "5f31b0706f59404fad3d0bff97ef89ddf24da4761608ea0646329362c662ba51",
                 "use_latest": false
+            },
+            {
+                "comment": "Ephemeral storage, read-write but will not persist after the VM stops",
+                "mount": "/var/cache",
+                "ephemeral": true
+            },
+            {
+                "comment": "Working data persisted on the VM supervisor, not available on other nodes",
+                "mount": "/var/lib/sqlite",
+                "persistence": "host"
+            },
+            {
+                "comment": "Working data persisted on the Aleph network. New VMs will try to use the latest version of this volume, with no guarantee against conflicts",
+                "mount": "/var/lib/statistics",
+                "persistence": "store"
             }
         ],
         "data": {
