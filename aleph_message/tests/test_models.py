@@ -66,6 +66,7 @@ def test_message_machine():
     with open(path) as fd:
         message_raw = json.load(fd)
 
+    message_raw['item_content'] = json.dumps(message_raw['content'])
     message = ProgramMessage(**message_raw)
     assert message
 
