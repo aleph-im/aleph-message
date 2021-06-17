@@ -93,6 +93,7 @@ class VolumePersistence(str, Enum):
 
 class PersistentVolume(AbstractVolume):
     persistence: VolumePersistence
+    name: str
 
     def is_read_only(self):
         return False

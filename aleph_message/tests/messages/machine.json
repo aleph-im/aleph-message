@@ -3,7 +3,7 @@
         "$oid": "6080402d7f44efefd611dc1e"
     },
     "chain": "ETH",
-    "item_hash": "94cd578c9118792a918cc3baa6ed87026331d6ea4aa0d1610f1cd494299495f1",
+    "item_hash": "7e16fff1323220229e6188472619ee92f870c5787df79b28cbf93797e2fa7486",
     "sender": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
     "type": "PROGRAM",
     "channel": "Fun-dApps",
@@ -52,11 +52,13 @@
             {
                 "comment": "Working data persisted on the VM supervisor, not available on other nodes",
                 "mount": "/var/lib/sqlite",
+                "name": "sqlite-data",
                 "persistence": "host"
             },
             {
                 "comment": "Working data persisted on the Aleph network. New VMs will try to use the latest version of this volume, with no guarantee against conflicts",
                 "mount": "/var/lib/statistics",
+                "name": "statistics",
                 "persistence": "store"
             }
         ],
