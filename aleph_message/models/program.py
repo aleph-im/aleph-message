@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, List, Union
 
-from pydantic import Field, Extra
+from pydantic import Field, Extra, conint
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
@@ -81,6 +81,7 @@ class ImmutableVolume(AbstractVolume):
 
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
+    size_mib: conint(gt=0, le=1000, strict=True)  # Limit to 1 GiB
 
     def is_read_only(self):
         return False
@@ -94,6 +95,7 @@ class VolumePersistence(str, Enum):
 class PersistentVolume(AbstractVolume):
     persistence: VolumePersistence
     name: str
+    size_mib: conint(gt=0, le=1000, strict=True)  # Limit to 1 GiB
 
     def is_read_only(self):
         return False
