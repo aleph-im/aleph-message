@@ -62,7 +62,7 @@ class FunctionRuntime(HashableModel):
 
 class AbstractVolume(HashableModel, ABC):
     comment: Optional[str]
-    mount: str
+    mount: Optional[str]
 
     @abstractmethod
     def is_read_only(self): ...

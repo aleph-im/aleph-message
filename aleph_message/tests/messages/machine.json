@@ -63,6 +63,12 @@
                 "name": "statistics",
                 "persistence": "store",
                 "size_mib": 10
+            },
+            {
+                "comment": "Raw drive to use by a process, do not mount it",
+                "name": "raw-data",
+                "persistence": "host",
+                "size_mib": 10
             }
         ],
         "data": {
