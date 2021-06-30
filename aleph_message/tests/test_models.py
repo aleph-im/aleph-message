@@ -1,5 +1,6 @@
 import json
 import os.path
+from hashlib import sha256
 from os import listdir
 from os.path import join, isdir
 from pprint import pprint
@@ -66,6 +67,7 @@ def test_message_machine():
     with open(path) as fd:
         message_raw = json.load(fd)
 
+    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
     message_raw['item_content'] = json.dumps(message_raw['content'])
     message = ProgramMessage(**message_raw)
     assert message
