@@ -1,8 +1,10 @@
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Optional, List, Union
+from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
+from enum import Enum
 from pydantic import Field, Extra, conint
+from typing import Optional, List, Union
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
@@ -37,8 +39,14 @@ class Export(HashableModel):
     mount: str
 
 
+class Subscription(HashableModel):
+    class Config:
+        extra = Extra.allow
+
+
 class FunctionTriggers(HashableModel):
     http: bool
+    message: Optional[List[Subscription]]
 
 
 class FunctionEnvironment(HashableModel):
