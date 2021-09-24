@@ -256,7 +256,8 @@ class ProgramMessage(BaseMessage):
         return v
 
 
-def Message(**message_dict: Dict):
+def Message(**message_dict: Dict
+            ) -> Union[PostMessage, AggregateMessage, StoreMessage, ProgramMessage]:
     "Returns the message class corresponding to the type of message."
     for raw_type, message_class in {
         MessageType.post: PostMessage,
