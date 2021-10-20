@@ -9,7 +9,7 @@ import pytest as pytest
 import requests
 from pydantic import ValidationError
 
-from aleph_message.models import MessagesResponse, Message, ProgramMessage
+from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
@@ -71,6 +71,24 @@ def test_message_machine():
     message_raw['item_content'] = json.dumps(message_raw['content'])
     message = ProgramMessage(**message_raw)
     assert message
+
+    message2 = Message(**message_raw)
+    assert message == message2
+
+    assert hash(message.content)
+
+
+def test_message_forget():
+    path = os.path.abspath(os.path.join(__file__, "../messages/forget.json"))
+    with open(path) as fd:
+        message_raw = json.load(fd)
+
+    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
+    message_raw['item_content'] = json.dumps(message_raw['content'])
+    message = ForgetMessage(**message_raw)
+    assert message
+    message2 = Message(**message_raw)
+    assert message == message2
 
     assert hash(message.content)
 

@@ -1,8 +1,10 @@
 import json
+from copy import copy
 from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from typing import List, Dict, Any, Optional, Union
+
 try:
     from typing import Literal
 except ImportError:
@@ -37,6 +39,7 @@ class MessageType(str, Enum):
     aggregate = "AGGREGATE"
     store = "STORE"
     program = "PROGRAM"
+    forget = "FORGET"
 
 
 class ItemType(str, Enum):
@@ -136,6 +139,18 @@ class StoreContent(BaseContent):
 
     class Config:
         extra = Extra.allow
+
+
+class ForgetContent(BaseContent):
+    "Content of a FORGET message"
+    hashes: List[str]
+    reason: Optional[str]
+
+    def __hash__(self):
+        # Convert List to Tuple for hashing
+        values = copy(self.__dict__)
+        values["hashes"] = tuple(values["hashes"])
+        return hash(self.__class__) + hash(values.values())
 
 
 class BaseMessage(BaseModel):
@@ -239,6 +254,11 @@ class StoreMessage(BaseMessage):
     content: StoreContent
 
 
+class ForgetMessage(BaseMessage):
+    type: Literal[MessageType.forget]
+    content: ForgetContent
+
+
 class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
     content: ProgramContent
@@ -266,6 +286,7 @@ def Message(**message_dict: Dict
         MessageType.aggregate: AggregateMessage,
         MessageType.store: StoreMessage,
         MessageType.program: ProgramMessage,
+        MessageType.forget: ForgetMessage,
     }.items():
         if message_dict["type"] == raw_type:
             return message_class(**message_dict)
