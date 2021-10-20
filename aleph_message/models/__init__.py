@@ -291,7 +291,7 @@ def Message(**message_dict: Dict
         if message_dict["type"] == raw_type:
             return message_class(**message_dict)
     else:
-        raise ValueError
+        raise ValueError(f"Unknown message type")
 
 
 class MessagesResponse(BaseModel):
