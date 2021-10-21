@@ -5,11 +5,12 @@ from os import listdir
 from os.path import join, isdir
 from pprint import pprint
 
-import pytest as pytest
+import pytest
 import requests
 from pydantic import ValidationError
 
-from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage
+from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage, \
+    PostContent
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
@@ -60,6 +61,38 @@ def test_messages_last_page():
             assert message
         except:
             raise
+
+
+def test_post_content():
+    """Test that a mistake in the validation of the POST content 'type' field is fixed.
+     Issue reported on 2021-10-21 on Telegram.
+     """
+    custom_type = "arbitrary_type"
+    p1 = PostContent(
+        type=custom_type,
+        address="0x1",
+        content={"blah": "bar"},
+        time=1.,
+    )
+    assert p1.type == custom_type
+
+    with pytest.raises(ValueError):
+        PostContent(
+            type="amend",
+            address="0x1",
+            content={"blah": "bar"},
+            time=1.,
+            # 'ref' field is missing from an amend
+        )
+
+    # 'ref' field is present on an amend
+    PostContent(
+        type="amend",
+        address="0x1",
+        content={"blah": "bar"},
+        time=1.,
+        ref='0x123',
+    )
 
 
 def test_message_machine():

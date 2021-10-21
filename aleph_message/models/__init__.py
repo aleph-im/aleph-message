@@ -100,17 +100,19 @@ class PostContent(BaseContent):
     content: Optional[Any] = Field(
         description="User-generated content of a POST message"
     )
-    type: str = Field(description="User-generated 'content-type' of a POST message")
     ref: Optional[Union[str, ChainRef]] = Field(
-        description="Other message referenced by this one"
+        description="Other message referenced by this one",
+        default=None,
     )
+    type: str = Field(description="User-generated 'content-type' of a POST message")
 
     @validator("type")
     def check_type(cls, v, values):
-        if type == "amend":
-            ref = values["ref"]
+        if v == "amend":
+            ref = values.get("ref")
             if not ref:
                 raise ValueError("A 'ref' is required for POST type 'amend'")
+        return v
 
     class Config:
         extra = Extra.forbid
