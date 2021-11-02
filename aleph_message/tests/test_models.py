@@ -10,7 +10,7 @@ import requests
 from pydantic import ValidationError
 
 from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage, \
-    PostContent
+    PostContent, PostMessage
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
@@ -124,6 +124,18 @@ def test_message_forget():
     assert message == message2
 
     assert hash(message.content)
+
+
+def test_message_forgotten():
+    path = os.path.abspath(os.path.join(__file__, "../messages/forgotten.json"))
+    with open(path) as fd:
+        message_raw = json.load(fd)
+
+    with pytest.raises(ValidationError):
+        message = PostMessage(**message_raw)
+
+    del message_raw["content"]
+    message = PostMessage(**message_raw)
 
 
 @pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")

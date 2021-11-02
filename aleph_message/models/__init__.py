@@ -186,7 +186,8 @@ class BaseMessage(BaseModel):
         description="Hashing algorithm used to compute 'item_hash'"
     )
     item_hash: str = Field(description="Hash of the content (sha256 by default)")
-    content: BaseContent = Field(description="Content of the message, ready to be used")
+
+    content: Optional[BaseContent] = Field(description="Content of the message, ready to be used")
 
     @validator("item_content")
     def check_item_content(cls, v: Optional[str], values):
@@ -237,6 +238,12 @@ class BaseMessage(BaseModel):
         extra = Extra.forbid
 
 
+class ForgottenMessage(BaseMessage):
+    forgotten_by: List[str] = Field(
+        description="Item hashes of the 'forget' messages that required the removal of "
+        "this message's content",
+    )
+
 class PostMessage(BaseMessage):
     """Unique data posts (unique data points, events, ...)"""
 
@@ -280,8 +287,9 @@ class ProgramMessage(BaseMessage):
         return v
 
 
-def Message(**message_dict: Dict
-            ) -> Union[PostMessage, AggregateMessage, StoreMessage, ProgramMessage]:
+def Message(
+    **message_dict: Dict,
+) -> Union[PostMessage, AggregateMessage, StoreMessage, ProgramMessage]:
     "Returns the message class corresponding to the type of message."
     for raw_type, message_class in {
         MessageType.post: PostMessage,
