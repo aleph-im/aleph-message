@@ -17,6 +17,10 @@
             "ref": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
             "use_latest": false
         },
+        "variables": {
+            "VM_CUSTOM_VARIABLE": "SOMETHING",
+            "VM_CUSTOM_VARIABLE_2": "32"
+        },
         "on": {
             "http": true,
             "message": [

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 from enum import Enum
 from pydantic import Field, Extra, conint
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
@@ -116,6 +116,7 @@ class ProgramContent(HashableModel, BaseContent):
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
     code: CodeContent = Field(description="Code to execute")
+    variables: Optional[Dict[str, str]] = Field(default=None, description="Environment variables available in the VM")
     data: Optional[DataContent] = Field(default=None, description="Data to use during computation")
     export: Optional[Export] = Field(default=None, description="Data to export after computation")
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
