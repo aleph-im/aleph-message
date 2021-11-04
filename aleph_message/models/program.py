@@ -46,7 +46,7 @@ class Subscription(HashableModel):
 
 class FunctionTriggers(HashableModel):
     http: bool
-    message: Optional[List[Subscription]]
+    message: Optional[List[Subscription]] = None
 
 
 class FunctionEnvironment(HashableModel):
@@ -69,8 +69,8 @@ class FunctionRuntime(HashableModel):
 
 
 class AbstractVolume(HashableModel, ABC):
-    comment: Optional[str]
-    mount: Optional[str]
+    comment: Optional[str] = None
+    mount: Optional[str] = None
 
     @abstractmethod
     def is_read_only(self): ...
@@ -116,8 +116,8 @@ class ProgramContent(HashableModel, BaseContent):
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
     code: CodeContent = Field(description="Code to execute")
-    data: Optional[DataContent] = Field(description="Data to use during computation")
-    export: Optional[Export] = Field(description="Data to export after computation")
+    data: Optional[DataContent] = Field(default=None, description="Data to use during computation")
+    export: Optional[Export] = Field(default=None, description="Data to export after computation")
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
     environment: FunctionEnvironment = Field(description="Properties of the execution environment")
     resources: MachineResources = Field(description="System resources required")
