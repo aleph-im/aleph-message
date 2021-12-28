@@ -111,6 +111,17 @@ def test_message_machine():
     assert hash(message.content)
 
 
+def test_message_machine_named():
+    path = os.path.abspath(os.path.join(__file__, "../messages/machine_named.json"))
+    with open(path) as fd:
+        message_raw = json.load(fd)
+
+    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
+    message_raw['item_content'] = json.dumps(message_raw['content'])
+    message = ProgramMessage(**message_raw)
+    assert message.content.metadata['version'] == '10.2'
+
+
 def test_message_forget():
     path = os.path.abspath(os.path.join(__file__, "../messages/forget.json"))
     with open(path) as fd:
