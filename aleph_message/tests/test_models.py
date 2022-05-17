@@ -9,8 +9,13 @@ import pytest
 import requests
 from pydantic import ValidationError
 
-from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage, \
-    PostContent
+from aleph_message.signed import SignedMessagesResponse, SignedForgetMessage, SignedProgramMessage, SignedMessage
+from aleph_message.message import (
+#     Message,
+#     ProgramMessage,
+#     ForgetMessage,
+    PostContent,
+)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
@@ -22,26 +27,26 @@ HASHES_TO_IGNORE = (
 
 
 def test_message_response_aggregate():
-    path = "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00&chain=ETH&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
+    path = "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    response = SignedMessagesResponse(**data_dict)
     assert response
 
 
 def test_message_response_post():
-    path = "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b&chain=ETH&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
+    path = "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    response = SignedMessagesResponse(**data_dict)
     assert response
 
 
 def test_message_response_store():
-    path = "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305&chain=ETH&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
+    path = "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    response = SignedMessagesResponse(**data_dict)
     assert response
 
 
@@ -57,7 +62,7 @@ def test_messages_last_page():
         if message_dict["item_hash"] in HASHES_TO_IGNORE:
             continue
         try:
-            message = Message(**message_dict)
+            message = SignedMessage(**message_dict)
             assert message
         except:
             raise
@@ -65,14 +70,14 @@ def test_messages_last_page():
 
 def test_post_content():
     """Test that a mistake in the validation of the POST content 'type' field is fixed.
-     Issue reported on 2021-10-21 on Telegram.
-     """
+    Issue reported on 2021-10-21 on Telegram.
+    """
     custom_type = "arbitrary_type"
     p1 = PostContent(
         type=custom_type,
         address="0x1",
         content={"blah": "bar"},
-        time=1.,
+        time=1.0,
     )
     assert p1.type == custom_type
 
@@ -81,7 +86,7 @@ def test_post_content():
             type="amend",
             address="0x1",
             content={"blah": "bar"},
-            time=1.,
+            time=1.0,
             # 'ref' field is missing from an amend
         )
 
@@ -90,8 +95,8 @@ def test_post_content():
         type="amend",
         address="0x1",
         content={"blah": "bar"},
-        time=1.,
-        ref='0x123',
+        time=1.0,
+        ref="0x123",
     )
 
 
@@ -100,12 +105,16 @@ def test_message_machine():
     with open(path) as fd:
         message_raw = json.load(fd)
 
-    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
-    message_raw['item_content'] = json.dumps(message_raw['content'])
-    message = ProgramMessage(**message_raw)
+    print(json.dumps(message_raw, indent=4))
+
+    message_raw["item_hash"] = sha256(
+        json.dumps(message_raw["content"]).encode()
+    ).hexdigest()
+    message_raw["item_content"] = json.dumps(message_raw["content"])
+    message = SignedProgramMessage(**message_raw)
     assert message
 
-    message2 = Message(**message_raw)
+    message2 = SignedMessage(**message_raw)
     assert message == message2
 
     assert hash(message.content)
@@ -118,9 +127,9 @@ def test_message_forget():
 
     message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
     message_raw['item_content'] = json.dumps(message_raw['content'])
-    message = ForgetMessage(**message_raw)
+    message = SignedForgetMessage(**message_raw)
     assert message
-    message2 = Message(**message_raw)
+    message2 = SignedMessage(**message_raw)
     assert message == message2
 
     assert hash(message.content)
@@ -133,7 +142,7 @@ def test_messages_from_disk():
             data_dict = json.load(page_fd)
         for message_dict in data_dict["messages"]:
             try:
-                message = Message(**message_dict)
+                message = SignedMessage(**message_dict)
                 assert message
             except ValidationError as e:
                 pprint(message_dict)

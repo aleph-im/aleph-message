@@ -4,7 +4,7 @@ from os.path import abspath, join
 
 import requests
 
-ALEPH_API_SERVER = "https://api2.aleph.im"
+ALEPH_API_SERVER = "https://official.aleph.cloud"
 MESSAGES_STORAGE_PATH: str = abspath(join(__file__, "../test_messages"))
 
 

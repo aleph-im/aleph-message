@@ -19,7 +19,7 @@ class HashableModel(BaseModel):
 
 
 class BaseContent(BaseModel):
-    "Base template for message content"
+    """Base template for message content"""
     address: str
     time: float
 

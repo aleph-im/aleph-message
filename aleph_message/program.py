@@ -73,7 +73,8 @@ class AbstractVolume(HashableModel, ABC):
     mount: Optional[str] = None
 
     @abstractmethod
-    def is_read_only(self): ...
+    def is_read_only(self):
+        ...
 
     class Config:
         extra = Extra.forbid
@@ -116,20 +117,27 @@ class ProgramContent(HashableModel, BaseContent):
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
     code: CodeContent = Field(description="Code to execute")
-    variables: Optional[Dict[str, str]] = Field(default=None, description="Environment variables available in the VM")
-    data: Optional[DataContent] = Field(default=None, description="Data to use during computation")
-    export: Optional[Export] = Field(default=None, description="Data to export after computation")
+    variables: Optional[Dict[str, str]] = Field(
+        default=None, description="Environment variables available in the VM"
+    )
+    data: Optional[DataContent] = Field(
+        default=None, description="Data to use during computation"
+    )
+    export: Optional[Export] = Field(
+        default=None, description="Data to export after computation"
+    )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
-    environment: FunctionEnvironment = Field(description="Properties of the execution environment")
+    environment: FunctionEnvironment = Field(
+        description="Properties of the execution environment"
+    )
     resources: MachineResources = Field(description="System resources required")
     runtime: FunctionRuntime = Field(
         description="Execution runtime (rootfs with Python interpreter)"
     )
     volumes: List[MachineVolume] = Field(
-        default=[],
-        description="Volumes to mount on the filesystem"
+        default=[], description="Volumes to mount on the filesystem"
     )
     replaces: Optional[str] = Field(
         default=None,
-        description="Previous version to replace. Must be signed by the same address"
+        description="Previous version to replace. Must be signed by the same address",
     )
