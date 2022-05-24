@@ -14,6 +14,7 @@ from pydantic import BaseModel, Extra, Field, validator
 
 from .abstract import BaseContent
 from .program import ProgramContent
+from ..exceptions import UnknownHashError
 
 
 class Chain(str, Enum):
@@ -47,6 +48,26 @@ class ItemType(str, Enum):
     inline = "inline"
     storage = "storage"
     ipfs = "ipfs"
+
+    @classmethod
+    def from_hash(cls, item_hash: str) -> 'ItemType':
+        # https://docs.ipfs.io/concepts/content-addressing/#identifier-formats
+        if item_hash.startswith("Qm") and 44 <= len(item_hash) <= 46:  # CIDv0
+            return cls.ipfs
+        elif item_hash.startswith("bafy") and len(item_hash) == 59:  # CIDv1
+            return cls.ipfs
+        elif len(item_hash) == 64:
+            return cls.storage
+        else:
+            raise UnknownHashError(f"Unknown hash {len(item_hash)} {item_hash}")
+
+    @classmethod
+    def is_storage(cls, item_hash: str):
+        return cls.from_hash(item_hash) == cls.storage
+
+    @classmethod
+    def is_ipfs(cls, item_hash: str):
+        return cls.from_hash(item_hash) == cls.ipfs
 
 
 class MongodbId(BaseModel):
