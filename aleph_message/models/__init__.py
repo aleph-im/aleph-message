@@ -147,6 +147,7 @@ class StoreContent(BaseContent):
 class ForgetContent(BaseContent):
     "Content of a FORGET message"
     hashes: List[str]
+    aggregates: List[str] = Field(default_factory=list)
     reason: Optional[str] = None
 
     def __hash__(self):
