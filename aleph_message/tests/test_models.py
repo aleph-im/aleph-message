@@ -1,17 +1,32 @@
 import json
 import os.path
-from hashlib import sha256
 from os import listdir
 from os.path import join, isdir
-from pprint import pprint
+from pathlib import Path
 
 import pytest
 import requests
 from pydantic import ValidationError
+from rich.console import Console
 
-from aleph_message.models import MessagesResponse, Message, ProgramMessage, ForgetMessage, \
-    PostContent
+from aleph_message.exceptions import UnknownHashError
+from aleph_message.models import (
+    MessagesResponse,
+    Message,
+    ProgramMessage,
+    ForgetMessage,
+    PostContent,
+    add_item_content_and_hash,
+    create_message_from_file,
+    ItemType,
+    create_new_message,
+    PostMessage,
+    create_message_from_json,
+    MessageType,
+)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
+
+console = Console(color_system="windows")
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
 
@@ -22,7 +37,10 @@ HASHES_TO_IGNORE = (
 
 
 def test_message_response_aggregate():
-    path = "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
+    path = (
+        "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00"
+        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
+    )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
     response = MessagesResponse(**data_dict)
@@ -30,7 +48,10 @@ def test_message_response_aggregate():
 
 
 def test_message_response_post():
-    path = "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
+    path = (
+        "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b"
+        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
+    )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
     response = MessagesResponse(**data_dict)
@@ -38,7 +59,10 @@ def test_message_response_post():
 
 
 def test_message_response_store():
-    path = "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
+    path = (
+        "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305"
+        "&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
+    )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
     response = MessagesResponse(**data_dict)
@@ -56,32 +80,37 @@ def test_messages_last_page():
     for message_dict in data_dict["messages"]:
         if message_dict["item_hash"] in HASHES_TO_IGNORE:
             continue
-        try:
-            message = Message(**message_dict)
-            assert message
-        except:
-            raise
+
+        message = Message(**message_dict)
+        assert message
 
 
 def test_post_content():
     """Test that a mistake in the validation of the POST content 'type' field is fixed.
-     Issue reported on 2021-10-21 on Telegram.
-     """
+    Issue reported on 2021-10-21 on Telegram.
+    """
     custom_type = "arbitrary_type"
     p1 = PostContent(
         type=custom_type,
         address="0x1",
         content={"blah": "bar"},
-        time=1.,
+        time=1.0,
     )
     assert p1.type == custom_type
+    assert p1.dict() == {
+        "address": "0x1",
+        "time": 1.0,
+        "content": {"blah": "bar"},
+        "ref": None,
+        "type": "arbitrary_type",
+    }
 
     with pytest.raises(ValueError):
         PostContent(
             type="amend",
             address="0x1",
             content={"blah": "bar"},
-            time=1.,
+            time=1.0,
             # 'ref' field is missing from an amend
         )
 
@@ -90,73 +119,110 @@ def test_post_content():
         type="amend",
         address="0x1",
         content={"blah": "bar"},
-        time=1.,
-        ref='0x123',
+        time=1.0,
+        ref="0x123",
     )
 
 
 def test_message_machine():
-    path = os.path.abspath(os.path.join(__file__, "../messages/machine.json"))
-    with open(path) as fd:
-        message_raw = json.load(fd)
+    path = Path(os.path.abspath(os.path.join(__file__, "../messages/machine.json")))
+    message = create_message_from_file(path, factory=ProgramMessage)
 
-    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
-    message_raw['item_content'] = json.dumps(message_raw['content'])
-    message = ProgramMessage(**message_raw)
-    assert message
-
-    message2 = Message(**message_raw)
-    assert message == message2
-
+    assert isinstance(message, ProgramMessage)
     assert hash(message.content)
 
 
 def test_message_machine_named():
-    path = os.path.abspath(os.path.join(__file__, "../messages/machine_named.json"))
-    with open(path) as fd:
-        message_raw = json.load(fd)
+    path = Path(
+        os.path.abspath(os.path.join(__file__, "../messages/machine_named.json"))
+    )
 
-    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
-    message_raw['item_content'] = json.dumps(message_raw['content'])
-    message = ProgramMessage(**message_raw)
-    assert message.content.metadata['version'] == '10.2'
+    message = create_message_from_file(path, factory=ProgramMessage)
+    assert message.content.metadata["version"] == "10.2"
 
 
 def test_message_forget():
+    path = Path(os.path.abspath(os.path.join(__file__, "../messages/forget.json")))
+    message = create_message_from_file(path, factory=ForgetMessage)
+    assert hash(message.content)
+
+
+def test_message_forget_cannot_be_forgotten():
+    """A FORGET message may not be forgotten"""
     path = os.path.abspath(os.path.join(__file__, "../messages/forget.json"))
     with open(path) as fd:
         message_raw = json.load(fd)
+    message_raw = add_item_content_and_hash(message_raw)
 
-    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
-    message_raw['item_content'] = json.dumps(message_raw['content'])
-    message = ForgetMessage(**message_raw)
-    assert message
-    message2 = Message(**message_raw)
-    assert message == message2
-
-    assert hash(message.content)
-
-    # A FORGET message may not be forgotten:
-    message_raw["forgotten_by"] = ['abcde']
+    message_raw["forgotten_by"] = ["abcde"]
     with pytest.raises(ValueError) as e:
         ForgetMessage(**message_raw)
-    assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten", )
+    assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten",)
 
 
 def test_message_forgotten_by():
     path = os.path.abspath(os.path.join(__file__, "../messages/machine.json"))
     with open(path) as fd:
         message_raw = json.load(fd)
-    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
-    message_raw['item_content'] = json.dumps(message_raw['content'])
+    message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
     _ = ProgramMessage(**message_raw)
     _ = ProgramMessage(**message_raw, forgotten_by=None)
-    _ = ProgramMessage(**message_raw, forgotten_by=['abcde'])
-    _ = ProgramMessage(**message_raw, forgotten_by=['abcde', 'fghij'])
+    _ = ProgramMessage(**message_raw, forgotten_by=["abcde"])
+    _ = ProgramMessage(**message_raw, forgotten_by=["abcde", "fghij"])
 
 
+def test_item_type_from_hash():
+    assert (
+        ItemType.from_hash("QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW")
+        == ItemType.ipfs
+    )
+    assert (
+        ItemType.from_hash(
+            "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        )
+        == ItemType.ipfs
+    )
+    assert (
+        ItemType.from_hash(
+            "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        )
+        == ItemType.storage
+    )
+
+    with pytest.raises(UnknownHashError):
+        ItemType.from_hash("INVALID")
+
+
+def test_create_new_message():
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "POST",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "type": "test-message",
+            "time": "1625652287.017",
+            "content": {
+                "hello": "world",
+            },
+        },
+        "signature": "0x123456789",  # Signature validation requires using aleph-client
+    }
+
+    new_message_1 = create_new_message(message_dict, factory=PostMessage)
+    assert new_message_1
+    assert new_message_1.type == MessageType.post
+    new_message_2 = create_message_from_json(
+        json.dumps(message_dict), factory=PostMessage
+    )
+    assert new_message_1 == new_message_2
+
+
+@pytest.mark.slow
 @pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")
 def test_messages_from_disk():
     for messages_page in listdir(MESSAGES_STORAGE_PATH):
@@ -167,6 +233,7 @@ def test_messages_from_disk():
                 message = Message(**message_dict)
                 assert message
             except ValidationError as e:
-                pprint(message_dict)
-                print(e.json())
+                console.print("-" * 79)
+                console.print(message_dict)
+                console.print_json(e.json())
                 raise
