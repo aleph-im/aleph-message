@@ -217,6 +217,8 @@ class BaseMessage(BaseModel):
     item_hash: str = Field(description="Hash of the content (sha256 by default)")
     content: BaseContent = Field(description="Content of the message, ready to be used")
 
+    forgotten_by: Optional[List[str]]
+
     @validator("item_content")
     def check_item_content(cls, v: Optional[str], values):
         item_type = values["item_type"]
@@ -288,6 +290,12 @@ class StoreMessage(BaseMessage):
 class ForgetMessage(BaseMessage):
     type: Literal[MessageType.forget]
     content: ForgetContent
+
+    @validator('forgotten_by')
+    def cannot_be_forgotten(cls, v: Optional[List[str]], values) -> Optional[List[str]]:
+        if v:
+            raise ValueError("This type of message may not be forgotten")
+        return v
 
 
 class ProgramMessage(BaseMessage):

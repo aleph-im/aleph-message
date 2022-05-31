@@ -125,6 +125,26 @@ def test_message_forget():
 
     assert hash(message.content)
 
+    # A FORGET message may not be forgotten:
+    message_raw["forgotten_by"] = ['abcde']
+    with pytest.raises(ValueError) as e:
+        ForgetMessage(**message_raw)
+    assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten", )
+
+
+def test_message_forgotten_by():
+    path = os.path.abspath(os.path.join(__file__, "../messages/machine.json"))
+    with open(path) as fd:
+        message_raw = json.load(fd)
+    message_raw['item_hash'] = sha256(json.dumps(message_raw['content']).encode()).hexdigest()
+    message_raw['item_content'] = json.dumps(message_raw['content'])
+
+    # Test different values for field 'forgotten_by'
+    _ = ProgramMessage(**message_raw)
+    _ = ProgramMessage(**message_raw, forgotten_by=None)
+    _ = ProgramMessage(**message_raw, forgotten_by=['abcde'])
+    _ = ProgramMessage(**message_raw, forgotten_by=['abcde', 'fghij'])
+
 
 @pytest.mark.skipif(not isdir(MESSAGES_STORAGE_PATH), reason="No file on disk to test")
 def test_messages_from_disk():
