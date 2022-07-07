@@ -27,6 +27,7 @@ class Chain(str, Enum):
     NULS = "NULS"
     NULS2 = "NULS2"
     SOL = "SOL"
+    TEZOS = "TEZOS"
 
 
 class HashType(str, Enum):
