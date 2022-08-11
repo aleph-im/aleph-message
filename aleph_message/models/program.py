@@ -4,10 +4,12 @@ from abc import ABC, abstractmethod
 
 from enum import Enum
 from pydantic import Field, Extra, conint
-from typing import Optional, List, Union, Dict, Any
+from typing import Optional, List, Union, Dict, Any, NewType
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
+
+Megabytes = NewType("Megabytes", int)
 
 
 class Encoding(str, Enum):
@@ -47,6 +49,10 @@ class Subscription(HashableModel):
 class FunctionTriggers(HashableModel):
     http: bool
     message: Optional[List[Subscription]] = None
+    durable: Optional[bool] = None
+
+    class Config:
+        extra = Extra.forbid
 
 
 class FunctionEnvironment(HashableModel):
@@ -60,6 +66,17 @@ class MachineResources(HashableModel):
     vcpus: int = 1
     memory: int = 128
     seconds: int = 1
+
+
+class NodeRequirements(HashableModel):
+    architecture: Optional[Union[Literal["x86_64", "arm64"]]] = None
+    vendor: Optional[Union[
+        Literal["AuthenticAMD"], Literal["GenuineIntel"], str
+    ]]  # Allow other vendors
+
+    class Config:
+        # Allow users to add custom requirements
+        extra = Extra.allow
 
 
 class FunctionRuntime(HashableModel):
@@ -123,6 +140,7 @@ class ProgramContent(HashableModel, BaseContent):
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
     environment: FunctionEnvironment = Field(description="Properties of the execution environment")
     resources: MachineResources = Field(description="System resources required")
+    requirements: Optional[NodeRequirements] = Field(default=None, description="System properties required")
     runtime: FunctionRuntime = Field(
         description="Execution runtime (rootfs with Python interpreter)"
     )

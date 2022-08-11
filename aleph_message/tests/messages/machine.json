@@ -23,6 +23,7 @@
         },
         "on": {
             "http": true,
+            "durable": false,
             "message": [
                 {
                     "sender": "0xB31B787AdA86c6067701d4C0A250c89C7f1f29A5",
@@ -45,6 +46,9 @@
             "vcpus": 1,
             "memory": 128,
             "seconds": 30
+        },
+        "requirements": {
+            "architecture": "x86_64"
         },
         "runtime": {
             "ref": "5f31b0706f59404fad3d0bff97ef89ddf24da4761608ea0646329362c662ba51",
