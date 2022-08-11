@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
 from enum import Enum
+from typing import Optional, List, Union, Dict, Any, NewType
+
 from pydantic import Field, Extra, conint
-from typing import Optional, List, Union, Dict, Any
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
+
+Megabytes = NewType("Megabytes", int)
 
 
 class Encoding(str, Enum):
@@ -47,6 +49,10 @@ class Subscription(HashableModel):
 class FunctionTriggers(HashableModel):
     http: bool
     message: Optional[List[Subscription]] = None
+    persistent: Optional[bool] = None
+
+    class Config:
+        extra = Extra.forbid
 
 
 class FunctionEnvironment(HashableModel):
@@ -60,6 +66,43 @@ class MachineResources(HashableModel):
     vcpus: int = 1
     memory: int = 128
     seconds: int = 1
+
+
+class CpuProperties(HashableModel):
+    """CPU properties."""
+
+    architecture: Optional[Literal["x86_64", "arm64"]] = Field(
+        default=None, description="CPU architecture"
+    )
+    vendor: Optional[
+        Union[Literal["AuthenticAMD", "GenuineIntel"], str]
+    ] = Field(default=None, description="CPU vendor. Allows other vendors.")
+
+    class Config:
+        extra = Extra.forbid
+
+
+class NodeRequirements(HashableModel):
+    owner: Optional[str] = Field(default=None, description="Address of the node owner")
+    address_regex: Optional[str] = Field(
+        default=None, description="Node address must match this regular expression"
+    )
+
+    class Config:
+        extra = Extra.forbid
+
+
+class HostRequirements(HashableModel):
+    cpu: Optional[CpuProperties] = Field(
+        default=None, description="Required CPU properties"
+    )
+    node: Optional[NodeRequirements] = Field(
+        default=None, description="Required Compute Resource Node properties"
+    )
+
+    class Config:
+        # Allow users to add custom requirements
+        extra = Extra.allow
 
 
 class FunctionRuntime(HashableModel):
@@ -132,6 +175,9 @@ class ProgramContent(HashableModel, BaseContent):
         description="Properties of the execution environment"
     )
     resources: MachineResources = Field(description="System resources required")
+    requirements: Optional[HostRequirements] = Field(
+        default=None, description="System properties required"
+    )
     runtime: FunctionRuntime = Field(
         description="Execution runtime (rootfs with Python interpreter)"
     )
