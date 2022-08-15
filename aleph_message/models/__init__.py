@@ -359,7 +359,9 @@ def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
     if not inplace:
         message_dict = copy(message_dict)
 
-    message_dict["item_content"] = json.dumps(message_dict["content"])
+    message_dict["item_content"] = json.dumps(
+        message_dict["content"], separators=(",", ":")
+    )
     message_dict["item_hash"] = sha256(
         message_dict["item_content"].encode()
     ).hexdigest()
