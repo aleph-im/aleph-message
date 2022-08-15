@@ -324,7 +324,7 @@ class ProgramMessage(BaseMessage):
             item_content = json.loads(values["item_content"])
             if v.dict(exclude_none=True) != item_content:
                 # Print differences
-                vdict = v.dict()
+                vdict = v.dict(exclude_none=True)
                 for key, value in item_content.items():
                     if vdict[key] != value:
                         print(f"{key}: {vdict[key]} != {value}")
