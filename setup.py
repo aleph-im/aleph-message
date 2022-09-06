@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Aleph Message - Python library for the Aleph.im message specification
-(c) 2021 OKESO for Aleph.im
+(c) 2022 OKESO for Aleph.im
 """
 
 import os
@@ -14,7 +14,7 @@ with open('README.md') as file:
     long_description = file.read()
 
 setup(name='aleph-message',
-      version='0.1.19',
+      version='0.2.0',
       description='Aleph.im message specification ',
       long_description=long_description,
       long_description_content_type='text/markdown',
