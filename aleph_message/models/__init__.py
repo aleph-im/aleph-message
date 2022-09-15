@@ -77,6 +77,9 @@ class ItemType(str, Enum):
 
 
 class ItemHash(str):
+    item_type: ItemType
+
+    # When overriding str, override __new__ instead of __init__.
     def __new__(cls, value, item_type: ItemType):
         obj = str.__new__(cls, value)
         obj.item_type = item_type
@@ -102,7 +105,7 @@ class ItemHash(str):
         return cls(v, item_type)
 
     def __repr__(self):
-        return f"ItemHash({super().__repr__()})"
+        return f"<ItemHash value={super().__repr__()} item_type={self.item_type!r}>"
 
 
 class MongodbId(BaseModel):
