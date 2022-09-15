@@ -14,21 +14,21 @@ def test_item_type():
     assert ItemType.is_ipfs(IPFS_HASH)
 
 
-class TestHashModel(BaseModel):
+class ModelWithItemHash(BaseModel):
     hash: ItemHash
 
 
 def test_item_hash():
     storage_object_dict = {"hash": STORAGE_HASH}
-    storage_object = TestHashModel.parse_obj(storage_object_dict)
+    storage_object = ModelWithItemHash.parse_obj(storage_object_dict)
     assert storage_object.hash == STORAGE_HASH
     assert storage_object.hash.item_type == ItemType.storage
 
     ipfs_object_dict = {"hash": IPFS_HASH}
-    ipfs_object = TestHashModel.parse_obj(ipfs_object_dict)
+    ipfs_object = ModelWithItemHash.parse_obj(ipfs_object_dict)
     assert ipfs_object.hash == IPFS_HASH
     assert ipfs_object.hash.item_type == ItemType.ipfs
 
     invalid_object_dict = {"hash": "fake-hash"}
     with pytest.raises(ValidationError):
-        _ = TestHashModel.parse_obj(invalid_object_dict)
+        _ = ModelWithItemHash.parse_obj(invalid_object_dict)
