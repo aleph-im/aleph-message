@@ -80,11 +80,8 @@ class ItemHash(str):
     item_type: ItemType
 
     # When overriding str, override __new__ instead of __init__.
-    def __new__(cls, value):
-        try:
-            item_type = ItemType.from_hash(value)
-        except UnknownHashError as e:
-            raise ValueError(str(e))
+    def __new__(cls, value: str):
+        item_type = ItemType.from_hash(value)
 
         obj = str.__new__(cls, value)
         obj.item_type = item_type

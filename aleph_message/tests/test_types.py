@@ -38,6 +38,11 @@ def test_item_hash():
 
 def test_copy_item_hash():
     item_hash = ItemHash(STORAGE_HASH)
-    item_hash_copy = copy.copy(item_hash)
 
+    item_hash_copy = copy.copy(item_hash)
+    assert item_hash_copy == item_hash
     assert item_hash_copy.item_type == item_hash.item_type
+
+    item_hash_deepcopy = copy.deepcopy(item_hash)
+    assert item_hash_deepcopy == item_hash
+    assert item_hash_deepcopy.item_type == item_hash.item_type
