@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Use GitHub's Docker registry to cache intermediate layers
       - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
@@ -24,4 +24,7 @@ jobs:
       - name: Pytest in the Docker image
         run: |
           docker run aleph-message:${GITHUB_REF##*/} pytest -vv --cov aleph_message
+
+      - name: MyPy in the Docker image
+        run: |
           docker run aleph-message:${GITHUB_REF##*/} mypy aleph_message --ignore-missing-imports --check-untyped-defs
