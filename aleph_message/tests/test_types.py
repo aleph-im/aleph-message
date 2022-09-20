@@ -3,6 +3,7 @@ import copy
 import pytest
 from pydantic import BaseModel, ValidationError
 
+from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import ItemHash, ItemType
 
 STORAGE_HASH = "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"
@@ -36,6 +37,14 @@ def test_item_hash():
         _ = ModelWithItemHash.parse_obj(invalid_object_dict)
 
 
+def test_item_hash_serialization():
+    ipfs_object = ModelWithItemHash(hash=STORAGE_HASH)
+    assert ipfs_object.json() == '{"hash": "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"}'
+
+    ipfs_object = ModelWithItemHash(hash=IPFS_HASH)
+    assert ipfs_object.json() == '{"hash": "QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"}'
+
+
 def test_copy_item_hash():
     item_hash = ItemHash(STORAGE_HASH)
 
@@ -46,3 +55,11 @@ def test_copy_item_hash():
     item_hash_deepcopy = copy.deepcopy(item_hash)
     assert item_hash_deepcopy == item_hash
     assert item_hash_deepcopy.item_type == item_hash.item_type
+
+
+def test_bad_item_hashes():
+    with pytest.raises(UnknownHashError):
+        ItemHash("This is not a hash !")
+    # UnknownHashError should be a ValueError
+    with pytest.raises(ValueError):
+        ItemHash("This is not a hash !")
