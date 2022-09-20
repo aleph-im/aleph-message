@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 from pydantic import BaseModel, ValidationError
 
@@ -32,3 +34,10 @@ def test_item_hash():
     invalid_object_dict = {"hash": "fake-hash"}
     with pytest.raises(ValidationError):
         _ = ModelWithItemHash.parse_obj(invalid_object_dict)
+
+
+def test_copy_item_hash():
+    item_hash = ItemHash(STORAGE_HASH)
+    item_hash_copy = copy.copy(item_hash)
+
+    assert item_hash_copy.item_type == item_hash.item_type
