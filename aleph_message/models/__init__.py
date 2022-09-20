@@ -1,6 +1,7 @@
 import json
 from copy import copy
 from enum import Enum
+from functools import lru_cache
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
@@ -56,6 +57,7 @@ class ItemType(str, Enum):
     ipfs = "ipfs"
 
     @classmethod
+    @lru_cache
     def from_hash(cls, item_hash: str) -> "ItemType":
         # https://docs.ipfs.io/concepts/content-addressing/#identifier-formats
         if item_hash.startswith("Qm") and 44 <= len(item_hash) <= 46:  # CIDv0
