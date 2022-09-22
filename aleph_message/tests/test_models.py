@@ -237,3 +237,16 @@ def test_messages_from_disk():
                 console.print(message_dict)
                 console.print_json(e.json())
                 raise
+
+
+def test_invalid_messages():
+    """Invalid messages should not crash the entire generation of the MessagesResponse object."""
+    path = Path(
+        os.path.abspath(
+            os.path.join(__file__, "../messages/contains_invalid_messages.json")
+        )
+    )
+    with open(path) as fd:
+        response_dict = json.load(fd)
+
+    MessagesResponse(**response_dict)

@@ -1,4 +1,5 @@
 import json
+import logging
 from copy import copy
 from enum import Enum
 from hashlib import sha256
@@ -11,11 +12,13 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-from pydantic import BaseModel, Extra, Field, validator
+from pydantic import BaseModel, Extra, Field, validator, ValidationError
 
 from .abstract import BaseContent
 from .program import ProgramContent
 from ..exceptions import UnknownHashError
+
+logger = logging.getLogger(__name__)
 
 
 class Chain(str, Enum):
@@ -355,8 +358,10 @@ class ProgramMessage(BaseMessage):
                 # Print differences
                 vdict = v.dict(exclude_none=True)
                 for key, value in item_content.items():
-                    if vdict[key] != value:
-                        print(f"{key}: {vdict[key]} != {value}")
+                    if vdict.get(key) != value:
+                        logger.warning(
+                            f"Value differs in field '{key}': '{vdict[key]}' != '{value}'"
+                        )
                 raise ValueError("Content and item_content differ")
         return v
 
@@ -439,6 +444,23 @@ class MessagesResponse(BaseModel):
     pagination_total: int
     pagination_per_page: int
     pagination_item: str
+
+    @validator("messages", pre=True)
+    def handle_invalid_messages(cls, v: List[Dict]):
+        """The code serving the API may return messages that are not valid
+        according the latest version of the schemas. Ignore them with a warning
+        instead of failing the parsing of the entire response.
+        """
+        result = []
+        for message_raw in v:
+            try:
+                message = Message(**message_raw)
+                result.append(message)
+            except KeyError as e:
+                logger.warning(f"KeyError: Field '{e.args[0]}' not found")
+            except ValidationError as e:
+                logger.warning(e, exc_info=False)
+        return result
 
     class Config:
         extra = Extra.forbid
