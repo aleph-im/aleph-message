@@ -144,6 +144,10 @@ class MessageConfirmation(BaseModel):
     chain: Chain
     height: int
     hash: Union[str, MessageConfirmationHash]
+    # These two optional fields are introduced in recent versions of CCNs. They should
+    # remain optional until the corresponding CCN upload (0.4.0) is widely uploaded.
+    time: Optional[float] = None
+    publisher: Optional[str] = None
 
     class Config:
         extra = Extra.forbid
