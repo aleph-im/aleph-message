@@ -168,7 +168,7 @@ def test_message_machine_port_mapping():
                 "vcpus": 1,
                 "memory": 128,
                 "seconds": 1,
-                "port_mapping": [
+                "published_ports": [
                     {"protocol": "tcp", "port": 80},
                     {"protocol": "udp", "port": 53},
                 ],
