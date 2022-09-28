@@ -132,6 +132,56 @@ def test_message_machine():
     assert hash(message.content)
 
 
+def test_message_machine_port_mapping():
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "PROGRAM",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": 1625652287.017,
+            "type": "vm-function",
+            "allow_amend": False,
+            "code": {
+                "encoding": "zip",
+                "entrypoint": "example_fastapi_2:app",
+                "ref": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+                "use_latest": False,
+            },
+            "on": {
+                "http": False,
+            },
+            "environment": {
+                "reproducible": False,
+                "internet": False,
+                "aleph_api": False,
+                "shared_cache": False,
+            },
+            "runtime": {
+                "ref": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+                "comment": "Dummy hash",
+                "use_latest": True,
+            },
+            "resources": {
+                "vcpus": 1,
+                "memory": 128,
+                "seconds": 1,
+                "port_mapping": [
+                    {"protocol": "tcp", "port": 80},
+                    {"protocol": "udp", "port": 53},
+                ],
+            },
+            "volumes": [],
+        },
+        "signature": "0x123456789",  # Signature validation requires using aleph-client
+    }
+
+    new_message = create_new_message(message_dict, factory=ProgramMessage)
+    assert new_message
+
+
 def test_message_machine_named():
     path = Path(
         os.path.abspath(os.path.join(__file__, "../messages/machine_named.json"))

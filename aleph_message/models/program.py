@@ -64,10 +64,25 @@ class FunctionEnvironment(HashableModel):
     shared_cache: bool = False
 
 
+class NetworkProtocol(str, Enum):
+    tcp = "tcp"
+    udp = "udp"
+
+
+class PortMapping(HashableModel):
+    """IPv4 port to forward from a randomly assigned port on the host to the VM."""
+
+    protocol: NetworkProtocol = NetworkProtocol.tcp
+    port: int
+
+
 class MachineResources(HashableModel):
     vcpus: int = 1
     memory: int = 128
     seconds: int = 1
+    port_mapping: Optional[List[PortMapping]] = Field(
+        default=None, description="IPv4 ports to map to open ports on the host."
+    )
 
 
 class CpuProperties(HashableModel):
