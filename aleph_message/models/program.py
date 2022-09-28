@@ -64,10 +64,36 @@ class FunctionEnvironment(HashableModel):
     shared_cache: bool = False
 
 
+class NetworkProtocol(str, Enum):
+    tcp = "tcp"
+    udp = "udp"
+
+
+class PublishedPort(HashableModel):
+    """IPv4 port to forward from a randomly assigned port on the host to the VM."""
+
+    protocol: NetworkProtocol = NetworkProtocol.tcp
+    port: int = Field(ge=1, le=65535, description="Port open on by the program and to be exposed")
+
+
+class PortMapping(PublishedPort):
+    """IPv4 port mapping from a public port on the host to a port on the VM."""
+
+    # The range 49152–65535 (215 + 214 to 216 − 1) contains dynamic or private
+    # ports that cannot be registered with IANA.[406] This range is used for
+    # private or customized services, for temporary purposes, and for automatic
+    # allocation of ephemeral ports.
+    # https://datatracker.ietf.org/doc/html/rfc6335
+    public_port: int = Field(ge=49152, le=65535, description="Port open routed to the service port")
+
+
 class MachineResources(HashableModel):
     vcpus: int = 1
     memory: int = 128
     seconds: int = 1
+    published_ports: Optional[List[PublishedPort]] = Field(
+        default=None, description="IPv4 ports to map to open ports on the host."
+    )
 
 
 class CpuProperties(HashableModel):
