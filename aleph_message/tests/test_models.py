@@ -209,6 +209,7 @@ def test_message_machine_named():
 
     message = create_message_from_file(path, factory=ProgramMessage)
     assert isinstance(message, ProgramMessage)
+    assert message.content
     assert isinstance(message.content.metadata, dict)
     assert message.content.metadata["version"] == "10.2"
 

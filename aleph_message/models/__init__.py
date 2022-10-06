@@ -204,6 +204,8 @@ class BaseMessage(BaseModel):
         default=None, description="Size of the content"
     )  # Almost always present
     time: float = Field(description="Unix timestamp when the message was published")
+    forgotten_by: Optional[List[str]]
+
     item_type: ItemType = Field(description="Storage method used for the content")
     item_content: Optional[str] = Field(
         default=None,
@@ -213,32 +215,42 @@ class BaseMessage(BaseModel):
         default=None, description="Hashing algorithm used to compute 'item_hash'"
     )
     item_hash: ItemHash = Field(description="Hash of the content (sha256 by default)")
-    content: BaseContent = Field(description="Content of the message, ready to be used")
+    content: Optional[BaseContent] = Field(description="Content of the message, ready to be used")
 
-    forgotten_by: Optional[List[str]]
-
-    @validator("item_content")
+    @validator("item_content", pre=True)
     def check_item_content(cls, v: Optional[str], values):
-        item_type = values["item_type"]
         if v is None:
-            return None
-        elif item_type == ItemType.inline:
-            try:
-                json.loads(v)
-            except JSONDecodeError:
-                raise ValueError(
-                    "Field 'item_content' does not appear to be valid JSON"
-                )
+            if values.get("forgotten_by"):
+                # Forgotten messages have their item_content value erased
+                return None
+            elif values.get("item_type") in (ItemType.storage.value, ItemType.ipfs.value):
+                # Item content is stored separately
+                return None
+            else:
+                raise ValueError("Field 'item_content' may only be missing on "
+                                 "aggregate, storage or forgotten messages")
         else:
-            raise ValueError(
-                f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
-            )
+            # v is not None
+            item_type = values["item_type"]
+            if item_type == ItemType.inline:
+                try:
+                    json.loads(v)
+                except JSONDecodeError:
+                    raise ValueError(
+                        "Field 'item_content' does not appear to be valid JSON"
+                    )
+            else:
+                raise ValueError(
+                    f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
+                )
         return v
 
     @validator("item_hash")
     def check_item_hash(cls, v, values):
         item_type = values["item_type"]
         if item_type == ItemType.inline:
+            if not values.get("item_content"):
+                return v
             item_content: str = values["item_content"]
 
             # Double check that the hash function is supported
@@ -303,10 +315,13 @@ class ForgetMessage(BaseMessage):
 
 class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
-    content: ProgramContent
+    content: Optional[ProgramContent]
 
     @validator("content")
     def check_content(cls, v, values):
+        if v is None and values.get('forgotten_by'):
+            return v
+
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             item_content = json.loads(values["item_content"])
@@ -323,6 +338,11 @@ class ProgramMessage(BaseMessage):
 class InstanceMessage(BaseMessage):
     type: Literal[MessageType.instance]
     content: InstanceContent
+
+
+class ForgottenMessage(BaseMessage):
+    type: MessageType
+    content: None
 
 
 AlephMessage: TypeAlias = Union[
