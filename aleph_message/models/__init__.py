@@ -190,9 +190,7 @@ class AggregateContent(BaseContent):
     key: Union[str, AggregateContentKey] = Field(
         description="The aggregate key can be either a string of a dict containing the key in field 'name'"
     )
-    content: Union[Dict, List, str, int, float, bool, None] = Field(
-        description="The content of an aggregate must be a dict"
-    )
+    content: Dict = Field(description="The content of an aggregate must be a dict")
 
     class Config:
         extra = Extra.forbid
