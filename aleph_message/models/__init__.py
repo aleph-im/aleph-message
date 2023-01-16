@@ -165,6 +165,17 @@ class ForgetContent(BaseContent):
         return hash(self.__class__) + hash(values.values())
 
 
+class CustomContent(BaseContent):
+    """Content of a custom message.
+    
+    Only the fields 'address' and 'time' are required from BaseContent,
+    all other fields may be arbitrary.  
+    """
+
+    class Config:
+        extra = Extra.allow
+
+
 class BaseMessage(BaseModel):
     """Base template for all messages"""
 
@@ -307,12 +318,18 @@ class ProgramMessage(BaseMessage):
         return v
 
 
+class CustomMessage(BaseMessage):
+    type: List[MessageType.custom]
+    content: CustomContent
+
+
 message_types = (
     PostMessage,
     AggregateMessage,
     StoreMessage,
     ProgramMessage,
     ForgetMessage,
+    CustomMessage,
 )
 
 AlephMessage = NewType("AlephMessage", Union[message_types])
