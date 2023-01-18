@@ -8,6 +8,7 @@ from pydantic import Field, Extra, conint
 from typing_extensions import Literal
 
 from .abstract import BaseContent, HashableModel
+from .item_hash import ItemHash
 
 Megabytes = NewType("Megabytes", int)
 
@@ -25,14 +26,14 @@ class MachineType(str, Enum):
 class CodeContent(HashableModel):
     encoding: Encoding
     entrypoint: str
-    ref: str
+    ref: ItemHash
     use_latest: bool = False
 
 
 class DataContent(HashableModel):
     encoding: Encoding
     mount: str
-    ref: str
+    ref: ItemHash
     use_latest: bool = False
 
 
@@ -74,9 +75,9 @@ class CpuProperties(HashableModel):
     architecture: Optional[Literal["x86_64", "arm64"]] = Field(
         default=None, description="CPU architecture"
     )
-    vendor: Optional[
-        Union[Literal["AuthenticAMD", "GenuineIntel"], str]
-    ] = Field(default=None, description="CPU vendor. Allows other vendors.")
+    vendor: Optional[Union[Literal["AuthenticAMD", "GenuineIntel"], str]] = Field(
+        default=None, description="CPU vendor. Allows other vendors."
+    )
 
     class Config:
         extra = Extra.forbid
@@ -106,7 +107,7 @@ class HostRequirements(HashableModel):
 
 
 class FunctionRuntime(HashableModel):
-    ref: str
+    ref: ItemHash
     use_latest: bool = True
     comment: str
 
@@ -124,7 +125,7 @@ class AbstractVolume(HashableModel, ABC):
 
 
 class ImmutableVolume(AbstractVolume):
-    ref: str
+    ref: ItemHash
     use_latest: bool = True
 
     def is_read_only(self):
