@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, List, Union, Dict, Any, NewType
+from typing import Any, Dict, List, NewType, Optional, Union
 
-from pydantic import Field, Extra, conint
+from pydantic import Extra, Field, conint
 from typing_extensions import Literal
 
+from ..utils import gigabyte_to_mebibyte
 from .abstract import BaseContent, HashableModel
 from .item_hash import ItemHash
 
@@ -148,7 +149,9 @@ class VolumePersistence(str, Enum):
 class PersistentVolume(AbstractVolume):
     persistence: VolumePersistence
     name: str
-    size_mib: conint(gt=0, le=1000, strict=True)  # Limit to 1 GiB
+    size_mib: conint(
+        gt=0, le=gigabyte_to_mebibyte(100), strict=True
+    )  # Limit to 100 GiB
 
     def is_read_only(self):
         return False
