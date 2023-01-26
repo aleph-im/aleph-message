@@ -186,7 +186,7 @@ class BaseMessage(BaseModel):
         default=None,
         description="Indicates that the message has been confirmed on a blockchain",
     )
-    signature: str = Field(
+    signature: Optional[str] = Field(
         description="Cryptographic signature of the message by the sender"
     )
     size: Optional[int] = Field(
