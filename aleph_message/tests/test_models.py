@@ -285,9 +285,14 @@ def test_create_new_message():
         "signature": "0x123456789",  # Signature validation requires using aleph-client
     }
 
-    new_message_1 = create_new_message(message_dict, factory=PostMessage)
+    new_message_1: PostMessage = create_new_message(message_dict, factory=PostMessage)
     assert new_message_1
     assert new_message_1.type == MessageType.post
+    # Check that the time was converted to a datetime
+    assert new_message_1.time.isoformat() == '2021-07-07T10:04:47.017000+00:00'
+
+    # The time field can be either a float or a datetime as string
+    message_dict["time"] = '2021-07-07T10:04:47.017000+00:00'
     new_message_2 = create_message_from_json(
         json.dumps(message_dict), factory=PostMessage
     )

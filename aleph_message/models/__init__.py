@@ -1,3 +1,4 @@
+import datetime
 import json
 from copy import copy
 from enum import Enum
@@ -203,7 +204,7 @@ class BaseMessage(BaseModel):
     size: Optional[int] = Field(
         default=None, description="Size of the content"
     )  # Almost always present
-    time: float = Field(description="Unix timestamp when the message was published")
+    time: datetime.datetime = Field(description="Unix timestamp or datetime when the message was published")
     item_type: ItemType = Field(description="Storage method used for the content")
     item_content: Optional[str] = Field(
         default=None,
