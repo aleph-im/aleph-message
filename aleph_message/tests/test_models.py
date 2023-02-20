@@ -23,6 +23,7 @@ from aleph_message.models import (
     PostMessage,
     create_message_from_json,
     MessageType,
+    AggregateMessage,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
@@ -43,7 +44,10 @@ def test_message_response_aggregate():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    message = data_dict["messages"][0]
+    AggregateMessage.parse_obj(message)
+
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -54,7 +58,7 @@ def test_message_response_post():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -65,7 +69,7 @@ def test_message_response_store():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse(**data_dict)
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -156,7 +160,7 @@ def test_message_forget_cannot_be_forgotten():
 
     message_raw["forgotten_by"] = ["abcde"]
     with pytest.raises(ValueError) as e:
-        ForgetMessage(**message_raw)
+        ForgetMessage.parse_obj(message_raw)
     assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten",)
 
 
