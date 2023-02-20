@@ -252,7 +252,7 @@ class BaseMessage(BaseModel):
     @validator("confirmed")
     def check_confirmed(cls, v, values):
         confirmations = values["confirmations"]
-        if v != bool(confirmations):
+        if v is True and not bool(confirmations):
             raise ValueError("Message cannot be 'confirmed' without 'confirmations'")
         return v
 
