@@ -169,7 +169,10 @@ class BaseMessage(BaseModel):
     """Base template for all messages"""
 
     id_: Optional[MongodbId] = Field(
-        alias="_id", default=None, description="MongoDB metadata"
+        alias="_id",
+        default=None,
+        description="MongoDB metadata",
+        exclude=True,
     )
     chain: Chain = Field(description="Blockchain used for this message")
 
@@ -255,6 +258,7 @@ class BaseMessage(BaseModel):
 
     class Config:
         extra = Extra.forbid
+        exclude = {"id_", "_id"}
 
 
 class PostMessage(BaseMessage):
