@@ -19,6 +19,7 @@ class Encoding(str, Enum):
 
 
 class MachineType(str, Enum):
+    vm_instance = "vm-instance"
     vm_function = "vm-function"
 
 
@@ -171,6 +172,7 @@ class VolumePersistence(str, Enum):
 
 
 class PersistentVolume(AbstractVolume):
+    parent: ItemHash
     persistence: VolumePersistence
     name: str
     size_mib: conint(
@@ -184,19 +186,14 @@ class PersistentVolume(AbstractVolume):
 MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]
 
 
-class ProgramContent(HashableModel, BaseContent):
+class ExecutableContent(HashableModel, BaseContent, ABC):
+    """Abstract content for executable messages (Instances, Programs).
+    """
     type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
-    code: CodeContent = Field(description="Code to execute")
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata of the VM")
     variables: Optional[Dict[str, str]] = Field(
         default=None, description="Environment variables available in the VM"
-    )
-    data: Optional[DataContent] = Field(
-        default=None, description="Data to use during computation"
-    )
-    export: Optional[Export] = Field(
-        default=None, description="Data to export after computation"
     )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
     environment: FunctionEnvironment = Field(
@@ -206,13 +203,37 @@ class ProgramContent(HashableModel, BaseContent):
     requirements: Optional[HostRequirements] = Field(
         default=None, description="System properties required"
     )
-    runtime: FunctionRuntime = Field(
-        description="Execution runtime (rootfs with Python interpreter)"
-    )
     volumes: List[MachineVolume] = Field(
         default=[], description="Volumes to mount on the filesystem"
     )
     replaces: Optional[str] = Field(
         default=None,
         description="Previous version to replace. Must be signed by the same address",
+    )
+
+
+class InstanceContent(ExecutableContent):
+    """Message content for scheduling a VM instance on the network.
+    """
+    type: Literal[MachineType.vm_instance]
+    rootfs: PersistentVolume = Field(
+        description="Root filesystem of the system, will be booted by the kernel")
+    cloud_config: Dict[str, Any] = Field(
+        description="Cloud-init configuration, see https://cloudinit.readthedocs.io/en/latest/"
+    )
+
+
+class ProgramContent(ExecutableContent):
+    """Message content or scheduling a program on the network.
+    """
+    type: Literal[MachineType.vm_function]
+    code: CodeContent = Field(description="Code to execute")
+    runtime: FunctionRuntime = Field(
+        description="Execution runtime (rootfs with Python interpreter)"
+    )
+    data: Optional[DataContent] = Field(
+        default=None, description="Data to use during computation"
+    )
+    export: Optional[Export] = Field(
+        default=None, description="Data to export after computation"
     )
