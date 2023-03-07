@@ -172,7 +172,7 @@ class VolumePersistence(str, Enum):
 
 
 class PersistentVolume(AbstractVolume):
-    parent: ItemHash
+    parent: Optional[ItemHash]
     persistence: VolumePersistence
     name: str
     size_mib: conint(
