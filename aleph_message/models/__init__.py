@@ -16,7 +16,7 @@ except ImportError:
 from pydantic import BaseModel, Extra, Field, validator
 
 from .abstract import BaseContent
-from .program import ProgramContent
+from .executable import ProgramContent, InstanceContent
 
 
 class Chain(str, Enum):
@@ -46,7 +46,7 @@ class MessageType(str, Enum):
     post = "POST"
     aggregate = "AGGREGATE"
     store = "STORE"
-    program = "PROGRAM"
+    executable = "EXECUTABLE"
     forget = "FORGET"
 
 
@@ -293,9 +293,9 @@ class ForgetMessage(BaseMessage):
         return v
 
 
-class ProgramMessage(BaseMessage):
-    type: Literal[MessageType.program]
-    content: ProgramContent
+class ExecutableMessage(BaseMessage):
+    type: Literal[MessageType.executable]
+    content: [ProgramContent, InstanceContent]
 
     @validator("content")
     def check_content(cls, v, values):
@@ -316,7 +316,7 @@ message_types = (
     PostMessage,
     AggregateMessage,
     StoreMessage,
-    ProgramMessage,
+    ExecutableMessage,
     ForgetMessage,
 )
 

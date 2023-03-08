@@ -13,7 +13,7 @@ from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     MessagesResponse,
     Message,
-    ProgramMessage,
+    ExecutableMessage,
     ForgetMessage,
     PostContent,
     add_item_content_and_hash,
@@ -130,9 +130,9 @@ def test_post_content():
 
 def test_message_machine():
     path = Path(os.path.abspath(os.path.join(__file__, "../messages/machine.json")))
-    message = create_message_from_file(path, factory=ProgramMessage)
+    message = create_message_from_file(path, factory=ExecutableMessage)
 
-    assert isinstance(message, ProgramMessage)
+    assert isinstance(message, ExecutableMessage)
     assert hash(message.content)
 
 
@@ -182,7 +182,7 @@ def test_message_machine_port_mapping():
         "signature": "0x123456789",  # Signature validation requires using aleph-client
     }
 
-    new_message = create_new_message(message_dict, factory=ProgramMessage)
+    new_message = create_new_message(message_dict, factory=ExecutableMessage)
     assert new_message
 
 
@@ -191,7 +191,7 @@ def test_message_machine_named():
         os.path.abspath(os.path.join(__file__, "../messages/machine_named.json"))
     )
 
-    message = create_message_from_file(path, factory=ProgramMessage)
+    message = create_message_from_file(path, factory=ExecutableMessage)
     assert message.content.metadata["version"] == "10.2"
 
 
@@ -221,10 +221,10 @@ def test_message_forgotten_by():
     message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
-    _ = ProgramMessage(**message_raw)
-    _ = ProgramMessage(**message_raw, forgotten_by=None)
-    _ = ProgramMessage(**message_raw, forgotten_by=["abcde"])
-    _ = ProgramMessage(**message_raw, forgotten_by=["abcde", "fghij"])
+    _ = ExecutableMessage(**message_raw)
+    _ = ExecutableMessage(**message_raw, forgotten_by=None)
+    _ = ExecutableMessage(**message_raw, forgotten_by=["abcde"])
+    _ = ExecutableMessage(**message_raw, forgotten_by=["abcde", "fghij"])
 
 
 def test_item_type_from_hash():
