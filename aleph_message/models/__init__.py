@@ -294,6 +294,7 @@ class ForgetMessage(BaseMessage):
 
 
 class ProgramMessage(BaseMessage):
+    """DEPRECATED, please use ExecutableMessage instead"""
     type: Literal[MessageType.program]
     content: ProgramContent
 
