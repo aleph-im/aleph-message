@@ -46,6 +46,7 @@ class MessageType(str, Enum):
     post = "POST"
     aggregate = "AGGREGATE"
     store = "STORE"
+    program = "PROGRAM"
     executable = "EXECUTABLE"
     forget = "FORGET"
 
@@ -293,6 +294,25 @@ class ForgetMessage(BaseMessage):
         return v
 
 
+class ProgramMessage(BaseMessage):
+    type: Literal[MessageType.program]
+    content: ProgramContent
+
+    @validator("content")
+    def check_content(cls, v, values):
+        item_type = values["item_type"]
+        if item_type == ItemType.inline:
+            item_content = json.loads(values["item_content"])
+            if v.dict(exclude_none=True) != item_content:
+                # Print differences
+                vdict = v.dict(exclude_none=True)
+                for key, value in item_content.items():
+                    if vdict[key] != value:
+                        print(f"{key}: {vdict[key]} != {value}")
+                raise ValueError("Content and item_content differ")
+        return v
+
+
 class ExecutableMessage(BaseMessage):
     type: Literal[MessageType.executable]
     content: [ProgramContent, InstanceContent]
@@ -316,6 +336,7 @@ message_types = (
     PostMessage,
     AggregateMessage,
     StoreMessage,
+    ProgramMessage,
     ExecutableMessage,
     ForgetMessage,
 )
