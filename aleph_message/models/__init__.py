@@ -215,7 +215,14 @@ class BaseMessage(BaseModel):
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             try:
-                json.loads(v)
+                item_content = json.loads(values["item_content"])
+                if v.dict(exclude_none=True) != item_content:
+                    # Print differences
+                    vdict = v.dict(exclude_none=True)
+                    for key, value in item_content.items():
+                        if vdict[key] != value:
+                            print(f"{key}: {vdict[key]} != {value}")
+                    raise ValueError("Content and item_content differ")
             except JSONDecodeError:
                 raise ValueError(
                     "Field 'item_content' does not appear to be valid JSON"
@@ -294,42 +301,13 @@ class ForgetMessage(BaseMessage):
 
 
 class ProgramMessage(BaseMessage):
-    """DEPRECATED, please use ExecutableMessage instead"""
     type: Literal[MessageType.program]
     content: ProgramContent
-
-    @validator("content")
-    def check_content(cls, v, values):
-        item_type = values["item_type"]
-        if item_type == ItemType.inline:
-            item_content = json.loads(values["item_content"])
-            if v.dict(exclude_none=True) != item_content:
-                # Print differences
-                vdict = v.dict(exclude_none=True)
-                for key, value in item_content.items():
-                    if vdict[key] != value:
-                        print(f"{key}: {vdict[key]} != {value}")
-                raise ValueError("Content and item_content differ")
-        return v
 
 
 class ExecutableMessage(BaseMessage):
     type: Literal[MessageType.executable]
     content: [ProgramContent, InstanceContent]
-
-    @validator("content")
-    def check_content(cls, v, values):
-        item_type = values["item_type"]
-        if item_type == ItemType.inline:
-            item_content = json.loads(values["item_content"])
-            if v.dict(exclude_none=True) != item_content:
-                # Print differences
-                vdict = v.dict(exclude_none=True)
-                for key, value in item_content.items():
-                    if vdict[key] != value:
-                        print(f"{key}: {vdict[key]} != {value}")
-                raise ValueError("Content and item_content differ")
-        return v
 
 
 message_types = (
