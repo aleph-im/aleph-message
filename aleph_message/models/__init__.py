@@ -47,7 +47,7 @@ class MessageType(str, Enum):
     aggregate = "AGGREGATE"
     store = "STORE"
     program = "PROGRAM"
-    executable = "EXECUTABLE"
+    instance = "INSTANCE"
     forget = "FORGET"
 
 
@@ -216,14 +216,7 @@ class BaseMessage(BaseModel):
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             try:
-                item_content = json.loads(values["item_content"])
-                if v.dict(exclude_none=True) != item_content:
-                    # Print differences
-                    vdict = v.dict(exclude_none=True)
-                    for key, value in item_content.items():
-                        if vdict[key] != value:
-                            print(f"{key}: {vdict[key]} != {value}")
-                    raise ValueError("Content and item_content differ")
+                json.loads(v)
             except JSONDecodeError:
                 raise ValueError(
                     "Field 'item_content' does not appear to be valid JSON"
@@ -305,10 +298,24 @@ class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
     content: ProgramContent
 
+    @validator("content")
+    def check_content(cls, v, values):
+        item_type = values["item_type"]
+        if item_type == ItemType.inline:
+            item_content = json.loads(values["item_content"])
+            if v.dict(exclude_none=True) != item_content:
+                # Print differences
+                vdict = v.dict(exclude_none=True)
+                for key, value in item_content.items():
+                    if vdict[key] != value:
+                        print(f"{key}: {vdict[key]} != {value}")
+                raise ValueError("Content and item_content differ")
+        return v
 
-class ExecutableMessage(BaseMessage):
-    type: Literal[MessageType.executable]
-    content: [ProgramContent, InstanceContent]
+
+class InstanceMessage(BaseMessage):
+    type: Literal[MessageType.instance]
+    content: InstanceContent
 
 
 message_types = (
@@ -316,11 +323,14 @@ message_types = (
     AggregateMessage,
     StoreMessage,
     ProgramMessage,
-    ExecutableMessage,
+    InstanceMessage,
     ForgetMessage,
 )
 
 AlephMessage = NewType("AlephMessage", Union[message_types])
+
+ExecutableContent = NewType("ExecutableContent", Union[InstanceContent, ProgramContent])
+ExecutableMessage = NewType("ExecutableMessage", Union[InstanceMessage, ProgramMessage])
 
 
 def Message(**message_dict: Dict) -> AlephMessage:
