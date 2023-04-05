@@ -14,7 +14,7 @@ from aleph_message.models import (
     MessagesResponse,
     Message,
     ProgramMessage,
-    ExecutableMessage,
+    InstanceMessage,
     ForgetMessage,
     PostContent,
     add_item_content_and_hash,
@@ -139,9 +139,9 @@ def test_message_machine():
 
 def test_executable_message_machine():
     path = Path(os.path.abspath(os.path.join(__file__, "../messages/executable_machine.json")))
-    message = create_message_from_file(path, factory=ExecutableMessage)
+    message = create_message_from_file(path, factory=InstanceMessage)
 
-    assert isinstance(message, ExecutableMessage)
+    assert isinstance(message, InstanceMessage)
     assert hash(message.content)
 
 
