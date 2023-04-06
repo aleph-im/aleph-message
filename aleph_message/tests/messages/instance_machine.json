@@ -52,12 +52,6 @@
             "name": "test-rootfs",
             "size_mib": 20000
         },
-        "cloud_config": {
-            "password": "password",
-            "chpasswd": {
-                "expire": "False"
-            }
-        },
         "volumes": [
             {
                 "comment": "Python libraries. Read-only since a 'ref' is specified.",
