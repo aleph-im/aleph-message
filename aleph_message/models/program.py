@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, NewType, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Extra, Field, conint
 from typing_extensions import Literal
 
-from ..utils import gigabyte_to_mebibyte
+from ..utils import Gigabytes, Mebibytes, gigabyte_to_mebibyte
 from .abstract import BaseContent, HashableModel
 from .item_hash import ItemHash
-
-Megabytes = NewType("Megabytes", int)
 
 
 class Encoding(str, Enum):
@@ -89,7 +87,7 @@ class PortMapping(PublishedPort):
 
 class MachineResources(HashableModel):
     vcpus: int = 1
-    memory: int = 128
+    memory: Mebibytes = Mebibytes(128)
     seconds: int = 1
     published_ports: Optional[List[PublishedPort]] = Field(
         default=None, description="IPv4 ports to map to open ports on the host."
@@ -161,7 +159,7 @@ class ImmutableVolume(AbstractVolume):
 
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
-    size_mib: conint(gt=0, le=1000, strict=True)  # Limit to 1 GiB
+    size_mib: conint(gt=Mebibytes(0), le=Mebibytes(1000), strict=True)  # Limit to 1 GiB
 
     def is_read_only(self):
         return False
@@ -176,7 +174,7 @@ class PersistentVolume(AbstractVolume):
     persistence: VolumePersistence
     name: str
     size_mib: conint(
-        gt=0, le=gigabyte_to_mebibyte(100), strict=True
+        gt=Mebibytes(0), le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True
     )  # Limit to 100 GiB
 
     def is_read_only(self):
