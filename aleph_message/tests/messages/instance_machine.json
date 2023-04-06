@@ -92,12 +92,6 @@
                 "size_mib": 10
             }
         ],
-        "data": {
-            "encoding": "zip",
-            "mount": "/data",
-            "ref": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
-            "use_latest": false
-        },
         "replaces": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
         "time": 1619017773.8950517
     },
