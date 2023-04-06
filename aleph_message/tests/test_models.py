@@ -137,8 +137,8 @@ def test_message_machine():
     assert hash(message.content)
 
 
-def test_executable_message_machine():
-    path = Path(os.path.abspath(os.path.join(__file__, "../messages/executable_machine.json")))
+def test_instance_message_machine():
+    path = Path(os.path.abspath(os.path.join(__file__, "../messages/instance_machine.json")))
     message = create_message_from_file(path, factory=InstanceMessage)
 
     assert isinstance(message, InstanceMessage)
