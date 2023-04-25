@@ -1,11 +1,6 @@
 from enum import Enum
 from functools import lru_cache
 
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
-
 from ..exceptions import UnknownHashError
 
 

@@ -1,8 +1,9 @@
 import json
 import os.path
 from os import listdir
-from os.path import join, isdir
+from os.path import isdir, join
 from pathlib import Path
+from typing import Dict
 
 import pytest
 import requests
@@ -11,20 +12,20 @@ from rich.console import Console
 
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
-    MessagesResponse,
-    Message,
-    ProgramMessage,
-    InstanceMessage,
+    AggregateMessage,
     ForgetMessage,
+    InstanceMessage,
+    ItemType,
+    MessagesResponse,
+    MessageType,
     PostContent,
+    PostMessage,
+    ProgramMessage,
     add_item_content_and_hash,
     create_message_from_file,
-    ItemType,
-    create_new_message,
-    PostMessage,
     create_message_from_json,
-    MessageType,
-    AggregateMessage,
+    create_new_message,
+    parse_message,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
@@ -86,7 +87,7 @@ def test_messages_last_page():
         if message_dict["item_hash"] in HASHES_TO_IGNORE:
             continue
 
-        message = Message(**message_dict)
+        message = parse_message(message_dict)
         assert message
 
 
@@ -136,9 +137,13 @@ def test_message_machine():
     assert isinstance(message, ProgramMessage)
     assert hash(message.content)
 
+    assert create_message_from_file(path)
+
 
 def test_instance_message_machine():
-    path = Path(os.path.abspath(os.path.join(__file__, "../messages/instance_machine.json")))
+    path = Path(
+        os.path.abspath(os.path.join(__file__, "../messages/instance_machine.json"))
+    )
     message = create_message_from_file(path, factory=InstanceMessage)
 
     assert isinstance(message, InstanceMessage)
@@ -193,6 +198,8 @@ def test_message_machine_port_mapping():
 
     new_message = create_new_message(message_dict, factory=ProgramMessage)
     assert new_message
+    new_message = create_new_message(message_dict)
+    assert new_message
 
 
 def test_message_machine_named():
@@ -201,6 +208,8 @@ def test_message_machine_named():
     )
 
     message = create_message_from_file(path, factory=ProgramMessage)
+    assert isinstance(message, ProgramMessage)
+    assert isinstance(message.content.metadata, dict)
     assert message.content.metadata["version"] == "10.2"
 
 
@@ -230,10 +239,10 @@ def test_message_forgotten_by():
     message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
-    _ = ProgramMessage(**message_raw)
-    _ = ProgramMessage(**message_raw, forgotten_by=None)
-    _ = ProgramMessage(**message_raw, forgotten_by=["abcde"])
-    _ = ProgramMessage(**message_raw, forgotten_by=["abcde", "fghij"])
+    _ = ProgramMessage.parse_obj(message_raw)
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": None})
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde"]})
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde", "fghij"]})
 
 
 def test_item_type_from_hash():
@@ -283,6 +292,7 @@ def test_create_new_message():
         json.dumps(message_dict), factory=PostMessage
     )
     assert new_message_1 == new_message_2
+    assert create_message_from_json(json.dumps(message_dict))
 
 
 @pytest.mark.slow
@@ -293,7 +303,7 @@ def test_messages_from_disk():
             data_dict = json.load(page_fd)
         for message_dict in data_dict["messages"]:
             try:
-                message = Message(**message_dict)
+                message = parse_message(message_dict)
                 assert message
             except ValidationError as e:
                 console.print("-" * 79)

@@ -23,4 +23,5 @@ jobs:
 
       - name: Pytest in the Docker image
         run: |
-          docker run aleph-message:${GITHUB_REF##*/} pytest -vv
+          docker run aleph-message:${GITHUB_REF##*/} pytest -vv --cov aleph_message
+          docker run aleph-message:${GITHUB_REF##*/} mypy aleph_message --ignore-missing-imports --check-untyped-defs

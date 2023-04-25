@@ -6,8 +6,10 @@ from pydantic import BaseModel, ValidationError
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import ItemHash, ItemType
 
-STORAGE_HASH = "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"
-IPFS_HASH = "QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"
+STORAGE_HASH = ItemHash(
+    "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"
+)
+IPFS_HASH = ItemHash("QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d")
 
 
 def test_item_type():
@@ -31,18 +33,28 @@ def test_item_hash():
     ipfs_object = ModelWithItemHash.parse_obj(ipfs_object_dict)
     assert ipfs_object.hash == IPFS_HASH
     assert ipfs_object.hash.item_type == ItemType.ipfs
+    assert repr(ipfs_object.hash).startswith("<ItemHash value='")
 
     invalid_object_dict = {"hash": "fake-hash"}
     with pytest.raises(ValidationError):
         _ = ModelWithItemHash.parse_obj(invalid_object_dict)
 
+    with pytest.raises(ValidationError):
+        _ = ModelWithItemHash.parse_obj({"hash": 12345})
+
 
 def test_item_hash_serialization():
     ipfs_object = ModelWithItemHash(hash=STORAGE_HASH)
-    assert ipfs_object.json() == '{"hash": "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"}'
+    assert (
+        ipfs_object.json()
+        == '{"hash": "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"}'
+    )
 
     ipfs_object = ModelWithItemHash(hash=IPFS_HASH)
-    assert ipfs_object.json() == '{"hash": "QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"}'
+    assert (
+        ipfs_object.json()
+        == '{"hash": "QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"}'
+    )
 
 
 def test_copy_item_hash():

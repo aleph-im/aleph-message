@@ -4,19 +4,23 @@ from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, NewType
-
-from .item_hash import ItemHash, ItemType
-
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Type,
+    Union,
+)
 
 from pydantic import BaseModel, Extra, Field, validator
+from typing_extensions import TypeAlias
 
 from .abstract import BaseContent
-from .executable import ProgramContent, InstanceContent
+from .execution.instance import InstanceContent
+from .execution.program import ProgramContent
+from .item_hash import ItemHash, ItemType
 
 
 class Chain(str, Enum):
@@ -91,7 +95,9 @@ class MessageConfirmation(BaseModel):
     # These two optional fields are introduced in recent versions of CCNs. They should
     # remain optional until the corresponding CCN upload (0.4.0) is widely uploaded.
     time: Optional[float] = None
-    publisher: Optional[str] = Field(default=None, description="The address that published the transaction.")
+    publisher: Optional[str] = Field(
+        default=None, description="The address that published the transaction."
+    )
 
     class Config:
         extra = Extra.forbid
@@ -214,7 +220,9 @@ class BaseMessage(BaseModel):
     @validator("item_content")
     def check_item_content(cls, v: Optional[str], values):
         item_type = values["item_type"]
-        if item_type == ItemType.inline:
+        if v is None:
+            return None
+        elif item_type == ItemType.inline:
             try:
                 json.loads(v)
             except JSONDecodeError:
@@ -222,10 +230,10 @@ class BaseMessage(BaseModel):
                     "Field 'item_content' does not appear to be valid JSON"
                 )
         else:
-            if v is not None:
-                raise ValueError(
-                    f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
-                )
+            assert v is not None
+            raise ValueError(
+                f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
+            )
         return v
 
     @validator("item_hash")
@@ -318,29 +326,45 @@ class InstanceMessage(BaseMessage):
     content: InstanceContent
 
 
-message_types = (
+AlephMessage: TypeAlias = Union[
     PostMessage,
     AggregateMessage,
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
     ForgetMessage,
-)
+]
 
-AlephMessage = NewType("AlephMessage", Union[message_types])
+AlephMessageType: TypeAlias = Union[
+    Type[PostMessage],
+    Type[AggregateMessage],
+    Type[StoreMessage],
+    Type[ProgramMessage],
+    Type[InstanceMessage],
+    Type[ForgetMessage],
+]
 
-ExecutableContent = NewType("ExecutableContent", Union[InstanceContent, ProgramContent])
-ExecutableMessage = NewType("ExecutableMessage", Union[InstanceMessage, ProgramMessage])
+message_classes: List[AlephMessageType] = [
+    PostMessage,
+    AggregateMessage,
+    StoreMessage,
+    ProgramMessage,
+    InstanceMessage,
+    ForgetMessage,
+]
+
+ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]
+ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage]
 
 
-def Message(**message_dict: Dict) -> AlephMessage:
+def parse_message(message_dict: Dict) -> AlephMessage:
     """Returns the message class corresponding to the type of message."""
-    for message_class in message_types:
+    for message_class in message_classes:
         message_type: MessageType = MessageType(
             message_class.__annotations__["type"].__args__[0]
         )
         if message_dict["type"] == message_type:
-            return message_class(**message_dict)
+            return message_class.parse_obj(message_dict)
     else:
         raise ValueError(f"Unknown message type {message_dict['type']}")
 
@@ -359,27 +383,36 @@ def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
 
 
 def create_new_message(
-    message_dict: Dict, factory: Union[Message, AlephMessage] = Message
+    message_dict: Dict,
+    factory: Optional[AlephMessageType] = None,
 ) -> AlephMessage:
     """Create a new message from a dict.
     Computes the 'item_content' and 'item_hash' fields.
     """
-    return factory(**add_item_content_and_hash(message_dict))
+    message_content = add_item_content_and_hash(message_dict)
+    if factory:
+        return factory.parse_obj(message_content)
+    else:
+        return parse_message(message_content)
 
 
 def create_message_from_json(
-    json_data: str, factory: Union[Message, AlephMessage] = Message
+    json_data: str,
+    factory: Optional[AlephMessageType] = None,
 ) -> AlephMessage:
     """Create a new message from a JSON encoded string.
     Computes the 'item_content' and 'item_hash' fields.
     """
     message_dict = json.loads(json_data)
-    add_item_content_and_hash(message_dict, inplace=True)
-    return factory(**message_dict)
+    message_content = add_item_content_and_hash(message_dict, inplace=True)
+    if factory:
+        return factory.parse_obj(message_content)
+    else:
+        return parse_message(message_content)
 
 
 def create_message_from_file(
-    filepath: Path, factory: Union[Message, AlephMessage] = Message, decoder=json
+    filepath: Path, factory: Optional[AlephMessageType] = None, decoder=json
 ) -> AlephMessage:
     """Create a new message from an encoded file.
     Expects json by default, but allows other decoders with a method `.load()`
@@ -388,8 +421,11 @@ def create_message_from_file(
     """
     with open(filepath) as fd:
         message_dict = decoder.load(fd)
-    add_item_content_and_hash(message_dict, inplace=True)
-    return factory(**message_dict)
+    message_content = add_item_content_and_hash(message_dict, inplace=True)
+    if factory:
+        return factory.parse_obj(message_content)
+    else:
+        return parse_message(message_content)
 
 
 class MessagesResponse(BaseModel):
