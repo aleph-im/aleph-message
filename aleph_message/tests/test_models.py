@@ -1,7 +1,7 @@
 import json
 import os.path
 from os import listdir
-from os.path import join, isdir
+from os.path import isdir, join
 from pathlib import Path
 
 import pytest
@@ -11,19 +11,19 @@ from rich.console import Console
 
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
-    MessagesResponse,
-    Message,
-    ProgramMessage,
+    AggregateMessage,
     ForgetMessage,
+    ItemType,
+    Message,
+    MessagesResponse,
+    MessageType,
     PostContent,
+    PostMessage,
+    ProgramMessage,
     add_item_content_and_hash,
     create_message_from_file,
-    ItemType,
-    create_new_message,
-    PostMessage,
     create_message_from_json,
-    MessageType,
-    AggregateMessage,
+    create_new_message,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 

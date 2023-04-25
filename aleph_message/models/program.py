@@ -71,7 +71,9 @@ class PublishedPort(HashableModel):
     """IPv4 port to forward from a randomly assigned port on the host to the VM."""
 
     protocol: NetworkProtocol = NetworkProtocol.tcp
-    port: int = Field(ge=1, le=65535, description="Port open on by the program and to be exposed")
+    port: int = Field(
+        ge=1, le=65535, description="Port open on by the program and to be exposed"
+    )
 
 
 class PortMapping(PublishedPort):
@@ -82,7 +84,9 @@ class PortMapping(PublishedPort):
     # private or customized services, for temporary purposes, and for automatic
     # allocation of ephemeral ports.
     # https://datatracker.ietf.org/doc/html/rfc6335
-    public_port: int = Field(ge=49152, le=65535, description="Port open routed to the service port")
+    public_port: int = Field(
+        ge=49152, le=65535, description="Port open routed to the service port"
+    )
 
 
 class MachineResources(HashableModel):
