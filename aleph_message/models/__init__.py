@@ -230,7 +230,6 @@ class BaseMessage(BaseModel):
                     "Field 'item_content' does not appear to be valid JSON"
                 )
         else:
-            assert v is not None
             raise ValueError(
                 f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
             )
