@@ -6,7 +6,7 @@ from pydantic import Field
 
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
-from .abstract import ExecutableContent
+from .abstract import BaseExecutableContent
 from .base import Encoding, MachineType
 
 
@@ -41,7 +41,7 @@ class Export(HashableModel):
     mount: str
 
 
-class ProgramContent(ExecutableContent):
+class ProgramContent(BaseExecutableContent):
     """Message content or scheduling a program on the network."""
 
     type: Literal[MachineType.vm_function]
