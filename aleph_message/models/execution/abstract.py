@@ -7,7 +7,6 @@ from pydantic import Field
 
 from .environment import (
     FunctionEnvironment,
-    FunctionTriggers,
     HostRequirements,
     MachineResources,
 )
@@ -23,7 +22,6 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     variables: Optional[Dict[str, str]] = Field(
         default=None, description="Environment variables available in the VM"
     )
-    on: FunctionTriggers = Field(description="Signals that trigger an execution")
     environment: FunctionEnvironment = Field(
         description="Properties of the execution environment"
     )

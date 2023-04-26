@@ -4,6 +4,7 @@ from typing import Literal, Optional
 
 from pydantic import Field
 
+from .environment import FunctionTriggers
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
@@ -55,3 +56,4 @@ class ProgramContent(BaseExecutableContent):
     export: Optional[Export] = Field(
         default=None, description="Data to export after computation"
     )
+    on: FunctionTriggers = Field(description="Signals that trigger an execution")
