@@ -4,12 +4,12 @@ from typing import Any, Dict, Literal
 
 from pydantic import Field
 
-from .abstract import ExecutableContent
+from .abstract import BaseExecutableContent
 from .base import MachineType
 from .volume import PersistentVolume
 
 
-class InstanceContent(ExecutableContent):
+class InstanceContent(BaseExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
     rootfs: PersistentVolume = Field(

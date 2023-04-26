@@ -15,7 +15,7 @@ from .volume import MachineVolume
 from ..abstract import BaseContent, HashableModel
 
 
-class ExecutableContent(HashableModel, BaseContent, ABC):
+class BaseExecutableContent(HashableModel, BaseContent, ABC):
     """Abstract content for execution messages (Instances, Programs)."""
 
     allow_amend: bool = Field(description="Allow amends to update this function")

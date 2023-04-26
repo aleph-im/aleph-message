@@ -1,5 +1,5 @@
-from .abstract import ExecutableContent
+from .abstract import BaseExecutableContent
 from .instance import InstanceContent
 from .program import ProgramContent
 
-__all__ = ["ExecutableContent", "InstanceContent", "ProgramContent"]
+__all__ = ["BaseExecutableContent", "InstanceContent", "ProgramContent"]
