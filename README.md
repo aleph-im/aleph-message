@@ -27,7 +27,7 @@ pip install aleph-message
 
 ```python
 import requests
-from aleph_message import Message
+from aleph_message import parse_message
 from pydantic import ValidationError
 
 ALEPH_API_SERVER = "https://official.aleph.cloud"
@@ -36,7 +36,7 @@ MESSAGE_ITEM_HASH = "9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da0
 message_dict = requests.get(ALEPH_API_SERVER + "/api/v0/messages.json?hashes=" + MESSAGE_ITEM_HASH).json()
 
 try:
-    message = Message(**message_dict["messages"][0])
+    message = parse_message(message_dict["messages"][0])
     print(message.sender)
 except ValidationError as e:
     print(e.json(indent=4))
