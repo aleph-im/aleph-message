@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from ..abstract import BaseContent, HashableModel
-from .base import MachineType
 from .environment import (
     FunctionEnvironment,
     FunctionTriggers,
@@ -14,12 +12,12 @@ from .environment import (
     MachineResources,
 )
 from .volume import MachineVolume
+from ..abstract import BaseContent, HashableModel
 
 
 class ExecutableContent(HashableModel, BaseContent, ABC):
     """Abstract content for execution messages (Instances, Programs)."""
 
-    type: MachineType = Field(description="Type of execution")
     allow_amend: bool = Field(description="Allow amends to update this function")
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata of the VM")
     variables: Optional[Dict[str, str]] = Field(

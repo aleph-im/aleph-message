@@ -8,27 +8,11 @@
     "channel": "Fun-dApps",
     "confirmed": true,
     "content": {
-        "type": "vm-instance",
         "address": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
         "allow_amend": false,
         "variables": {
             "VM_CUSTOM_VARIABLE": "SOMETHING",
             "VM_CUSTOM_VARIABLE_2": "32"
-        },
-        "on": {
-            "http": true,
-            "persistent": false,
-            "message": [
-                {
-                    "sender": "0xB31B787AdA86c6067701d4C0A250c89C7f1f29A5",
-                    "channel": "TEST"
-                },
-                {
-                    "content": {
-                        "ref": "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
-                    }
-                }
-            ]
         },
         "environment": {
             "reproducible": true,

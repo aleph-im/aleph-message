@@ -12,7 +12,6 @@ from .volume import PersistentVolume
 class InstanceContent(ExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
-    type: Literal[MachineType.vm_instance]
     rootfs: PersistentVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
