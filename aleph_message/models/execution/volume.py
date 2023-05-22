@@ -45,6 +45,15 @@ class EphemeralVolume(AbstractVolume):
         return False
 
 
+class ParentVolume(HashableModel):
+    """
+    A reference volume to copy as a persistent volume.
+    """
+
+    ref: ItemHash
+    use_latest: bool = False
+
+
 class VolumePersistence(str, Enum):
     host = "host"
     store = "store"
@@ -57,7 +66,7 @@ class PersistentVolumeSizeMib(ConstrainedInt):
 
 
 class PersistentVolume(AbstractVolume):
-    parent: Optional[ItemHash]
+    parent: Optional[ParentVolume]
     persistence: VolumePersistence
     name: str
     size_mib: PersistentVolumeSizeMib
