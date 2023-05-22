@@ -51,7 +51,7 @@ class ParentVolume(HashableModel):
     """
 
     ref: ItemHash
-    use_latest: bool = False
+    use_latest: bool = True
 
 
 class VolumePersistence(str, Enum):

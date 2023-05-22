@@ -7,7 +7,7 @@ from pydantic import Field
 from aleph_message.models.abstract import HashableModel
 from aleph_message.models.item_hash import ItemHash
 from .abstract import BaseExecutableContent
-from .volume import VolumePersistence, PersistentVolumeSizeMib
+from .volume import VolumePersistence, PersistentVolumeSizeMib, ParentVolume
 
 
 class RootfsVolume(HashableModel):
@@ -17,13 +17,10 @@ class RootfsVolume(HashableModel):
     The root file system of an instance is built as a copy of a reference image, named parent
     image. The user determines a custom size and persistence model.
     """
-    parent: ItemHash
+    parent: ParentVolume
     persistence: VolumePersistence
     # Use the same size constraint as persistent volumes for now
     size_mib: PersistentVolumeSizeMib
-    # Whether the volume must be based on the latest version of the parent volume or
-    # on the original. We use the original by default for consistency with programs.
-    use_latest: bool = False
 
 
 class InstanceContent(BaseExecutableContent):
