@@ -36,8 +36,7 @@
               "use_latest": true
             },
             "persistence": "host",
-            "size_mib": 20000,
-            "use_latest": true
+            "size_mib": 20000
         },
         "cloud_config": {
             "password": "password"
