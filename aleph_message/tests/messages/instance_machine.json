@@ -36,8 +36,8 @@
               "use_latest": true
             },
             "persistence": "host",
-            "name": "test-rootfs",
-            "size_mib": 20000
+            "size_mib": 20000,
+            "use_latest": true
         },
         "cloud_config": {
             "password": "password"
