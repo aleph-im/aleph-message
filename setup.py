@@ -14,7 +14,7 @@ with open('README.md') as file:
     long_description = file.read()
 
 setup(name='aleph-message',
-      version='0.4.0a1',
+      version='0.4.0a2',
       description='Aleph.im message specification ',
       long_description=long_description,
       long_description_content_type='text/markdown',
