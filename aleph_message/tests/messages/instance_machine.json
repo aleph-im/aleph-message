@@ -38,9 +38,11 @@
             "persistence": "host",
             "size_mib": 20000
         },
-        "cloud_config": {
-            "password": "password"
-        },
+        "authorized_keys": [
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGULT6A41Msmw2KEu0R9MvUjhuWNAsbdeZ0DOwYbt4Qt user@example",
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH0jqdc5dmt75QhTrWqeHDV9xN8vxbgFyOYs2fuQl7CI",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDRsrQV1HVrcnskNhyH0may8TG9fHCPawpAi3ZgAWU6V/R7ezvZOHnZdaFeIsOpFbPbt/l67Fur3qniSXllI2kvuh2D4BBJ9PwwlB2sgWzFDF34ADsfLQf+C/vpwrWemEEE91Tpj0dWbnf219i3mZLxy/+5Sv6kUy9YJlzWnDEUbaMAZK2CXrlK90b9Ns7mT82h6h3x9dLF/oCjBAKOSxbH2X+KgsDEZT0soxyluDqKNgKflkav+pvKFyD4J9IWM4j36r80yW+OPGsHqWoWleEhprfNb60RJPwKAYCDiBiSg6wCq5P+kS15O79Ko45wPaYDUwhRoNTcrWeadvTaCZgz9X3KDHgrX6wzdKqzQwtQeabhCaIGLFRMNl1Oy/BR8VozPbIe/mY28IN84An50UYkbve7nOGJucKc4hKxZKEVPpnVpRtIoWGwBJY2fi6C6wy2pBa8UX4C4t9NLJjNQSwFBzYOrphLu3ZW9A+267nogQHGnsJ5xnQ/MXximP3BlwM= user@example"
+        ],
         "volumes": [
             {
                 "comment": "Python libraries. Read-only since a 'ref' is specified.",

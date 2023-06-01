@@ -29,6 +29,4 @@ class InstanceContent(BaseExecutableContent):
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
-    cloud_config: Dict[str, Any] = Field(
-        description="Cloud-init configuration, see https://cloudinit.readthedocs.io/en/latest/"
-    )
+
