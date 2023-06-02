@@ -21,6 +21,8 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata of the VM")
     authorized_keys: Optional[List[str]] = Field(
         description="SSH public keys authorized to connect to the VM",
+    domains: Optional[List[str]] = Field(
+        description="Custom domains to link. @see https://docs.aleph.im/computing/domains/ fore more details",
     )
     variables: Optional[Dict[str, str]] = Field(
         default=None, description="Environment variables available in the VM"
