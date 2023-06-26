@@ -53,6 +53,7 @@ class MessageType(str, Enum):
     program = "PROGRAM"
     instance = "INSTANCE"
     forget = "FORGET"
+    permission = "PERMISSION"
 
 
 class MongodbId(BaseModel):
