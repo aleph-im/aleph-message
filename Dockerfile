@@ -1,5 +1,5 @@
 FROM python:3.9-bullseye
 
 COPY aleph_message /opt/aleph_message
-RUN pip install /opt/aleph-message[testing]
+RUN cd /opt/aleph-message && pip install .[testing]
 WORKDIR /opt
