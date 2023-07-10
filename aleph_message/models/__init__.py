@@ -75,7 +75,7 @@ class ChainRef(BaseModel):
     sender: str
     signature: str
     time: float
-    type = "POST"
+    type: Literal["POST"] = "POST"
 
 
 class MessageConfirmationHash(BaseModel):
