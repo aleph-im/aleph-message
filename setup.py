@@ -6,15 +6,18 @@
 import os
 
 from setuptools import setup
-
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 with open('README.md') as file:
     long_description = file.read()
 
+version = {}
+with open("./aleph_message/version.py") as fp:
+    exec(fp.read(), version)
+
 setup(name='aleph-message',
-      version='0.4.0',
+      version=version['__version__'],
       description='Aleph.im message specification ',
       long_description=long_description,
       long_description_content_type='text/markdown',
