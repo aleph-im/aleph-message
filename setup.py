@@ -14,7 +14,7 @@ with open('README.md') as file:
     long_description = file.read()
 
 setup(name='aleph-message',
-      version='0.4.0a3',
+      version='0.4.0',
       description='Aleph.im message specification ',
       long_description=long_description,
       long_description_content_type='text/markdown',
@@ -33,7 +33,7 @@ setup(name='aleph-message',
       license='MIT',
       platform='any',
       keywords="aleph.im message validation specification",
-      classifiers=['Development Status :: 4 - Beta',
+      classifiers=['Development Status :: 5 - Production/Stable',
                    'Programming Language :: Python :: 3',
                    'Intended Audience :: Developers',
                    'Topic :: System :: Distributed Computing',
