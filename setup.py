@@ -4,6 +4,16 @@
 """
 
 import os
+import re
+def get_version():
+    VERSIONFILE = os.path.join('aleph_message', '__init__.py')
+    initfile_lines = open(VERSIONFILE, 'rt').readlines()
+    VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+    for line in initfile_lines:
+        mo = re.search(VSRE, line, re.M)
+        if mo:
+            return mo.group(1)
+    raise RuntimeError('Unable to find version string in %s.' % (VERSIONFILE,))
 
 from setuptools import setup
 # allow setup.py to be run from any path
@@ -12,12 +22,8 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 with open('README.md') as file:
     long_description = file.read()
 
-version = {}
-with open("./aleph_message/version.py") as fp:
-    exec(fp.read(), version)
-
 setup(name='aleph-message',
-      version=version['__version__'],
+      version=get_version(),
       description='Aleph.im message specification ',
       long_description=long_description,
       long_description_content_type='text/markdown',
@@ -41,4 +47,7 @@ setup(name='aleph-message',
                    'Intended Audience :: Developers',
                    'Topic :: System :: Distributed Computing',
                    ],
-      )
+      use_scm_version=True,
+      setup_requires=['setuptools_scm']
+    )
+    
