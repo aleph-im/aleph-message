@@ -17,10 +17,6 @@ from ..abstract import BaseContent, HashableModel
 class BaseExecutableContent(HashableModel, BaseContent, ABC):
     """Abstract content for execution messages (Instances, Programs)."""
 
-    # TODO : Discuss how to communicate we want a firecracker backend
-    backend: str =  Field(
-        description="Qemu or firecracker backend"
-    )
     allow_amend: bool = Field(description="Allow amends to update this function")
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata of the VM")
     authorized_keys: Optional[List[str]] = Field(

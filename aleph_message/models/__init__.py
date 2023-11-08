@@ -52,6 +52,7 @@ class MessageType(str, Enum):
     store = "STORE"
     program = "PROGRAM"
     instance = "INSTANCE"
+    qemu_instance = "QEMU_INSTANCE"
     forget = "FORGET"
 
 
@@ -321,6 +322,10 @@ class ProgramMessage(BaseMessage):
 
 
 class InstanceMessage(BaseMessage):
+    type: Literal[MessageType.instance]
+    content: InstanceContent
+
+class QemuMessage(BaseMessage):
     type: Literal[MessageType.instance]
     content: InstanceContent
 
