@@ -20,6 +20,7 @@ from typing_extensions import TypeAlias
 from .abstract import BaseContent
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
+from .execution.qemu import QemuContent
 from .item_hash import ItemHash, ItemType
 
 
@@ -325,9 +326,13 @@ class InstanceMessage(BaseMessage):
     type: Literal[MessageType.instance]
     content: InstanceContent
 
+
+
+
 class QemuMessage(BaseMessage):
-    type: Literal[MessageType.instance]
-    content: InstanceContent
+    type: Literal[MessageType.qemu_instance]
+    content: QemuContent
+
 
 
 AlephMessage: TypeAlias = Union[
@@ -337,6 +342,7 @@ AlephMessage: TypeAlias = Union[
     ProgramMessage,
     InstanceMessage,
     ForgetMessage,
+    QemuMessage,
 ]
 
 AlephMessageType: TypeAlias = Union[
@@ -354,11 +360,12 @@ message_classes: List[AlephMessageType] = [
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
+    QemuMessage,
     ForgetMessage,
 ]
 
-ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]
-ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage]
+ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent, QemuContent]
+ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage, QemuMessage]
 
 
 def parse_message(message_dict: Dict) -> AlephMessage:
