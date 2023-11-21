@@ -81,12 +81,18 @@ class CpuProperties(HashableModel):
     class Config:
         extra = Extra.forbid
 
+class HypervisorType(str, Enum):
+    qemu = 'qemu'
+    firecracker = 'firecracker'
+
+
 
 class FunctionEnvironment(HashableModel):
     reproducible: bool = False
     internet: bool = False
     aleph_api: bool = False
     shared_cache: bool = False
+    hypervisor: Optional[HypervisorType]
 
 
 class NodeRequirements(HashableModel):
