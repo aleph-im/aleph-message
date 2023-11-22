@@ -35,7 +35,7 @@ class CodeContent(HashableModel):
     """Reference to the StoreMessage that contains the code or program to be executed."""
 
     encoding: Encoding
-    entrypoint: Entrypoint
+    entrypoint: Entrypoint | str
     ref: ItemHash  # Must reference a StoreMessage
     use_latest: bool = False
 
