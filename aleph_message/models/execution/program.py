@@ -17,11 +17,25 @@ class FunctionRuntime(HashableModel):
     comment: str
 
 
+class Entrypoint(HashableModel):
+    """
+    Entrypoint to a program.
+
+    The type of the entrypoint determines how the program is executed.
+    The name of the entrypoint determines which file or function is executed.
+    Additional arguments can be provided.
+    """
+
+    name: str
+    type: Literal["python-asgi"] | Literal["bash"] | Literal["binary"] | Literal["node.js"]
+    args: list[str]
+
+
 class CodeContent(HashableModel):
     """Reference to the StoreMessage that contains the code or program to be executed."""
 
     encoding: Encoding
-    entrypoint: str
+    entrypoint: Entrypoint
     ref: ItemHash  # Must reference a StoreMessage
     use_latest: bool = False
 
