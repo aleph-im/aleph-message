@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import Field
 
@@ -27,7 +27,7 @@ class Entrypoint(HashableModel):
     """
 
     name: str
-    type: Literal["python-asgi"] | Literal["bash"] | Literal["binary"] | Literal["node.js"]
+    type: Union[Literal["python-asgi"], Literal["bash"], Literal["binary"], Literal["node.js"]]
     args: list[str]
 
 
@@ -35,7 +35,7 @@ class CodeContent(HashableModel):
     """Reference to the StoreMessage that contains the code or program to be executed."""
 
     encoding: Encoding
-    entrypoint: Entrypoint | str
+    entrypoint: Union[Entrypoint, str]
     ref: ItemHash  # Must reference a StoreMessage
     use_latest: bool = False
 
