@@ -284,7 +284,7 @@ class ProgramMessage(BaseMessage):
     content: ProgramContent
 
     @classmethod
-    def parse_obj(cls, obj: Dict) -> "AlephContentType":
+    def parse_obj(cls, obj: Dict) -> "ProgramMessage":
         obj = add_item_content_and_hash(obj, factory=ProgramContent)
 
         return super().parse_obj(obj)
