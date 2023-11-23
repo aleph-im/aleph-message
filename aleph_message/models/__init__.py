@@ -283,6 +283,12 @@ class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
     content: ProgramContent
 
+    @classmethod
+    def parse_obj(cls, obj: Dict) -> "AlephContentType":
+        obj = add_item_content_and_hash(obj, factory=ProgramContent)
+
+        return super().parse_obj(obj)
+
     @validator("content")
     def check_content(cls, v, values):
         item_type = values["item_type"]
@@ -324,6 +330,15 @@ message_classes: List[AlephMessageType] = [
     ProgramMessage,
     InstanceMessage,
     ForgetMessage,
+]
+
+AlephContentType: TypeAlias = Union[
+    Type[PostContent],
+    Type[AggregateContent],
+    Type[StoreContent],
+    Type[ProgramContent],
+    Type[InstanceContent],
+    Type[ForgetContent],
 ]
 
 ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]

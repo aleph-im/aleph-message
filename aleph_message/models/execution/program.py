@@ -4,11 +4,11 @@ from typing import Literal, Optional, Union
 
 from pydantic import Field
 
-from .environment import FunctionTriggers
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
 from .base import Encoding, MachineType
+from .environment import FunctionTriggers
 
 
 class FunctionRuntime(HashableModel):
@@ -22,8 +22,10 @@ class CodeContent(HashableModel):
 
     encoding: Encoding
     entrypoint: str
-    interface: Union[Literal["asgi"], Literal["bash"], Literal["binary"], Literal["npm"]]
     ref: ItemHash  # Must reference a StoreMessage
+    interface: Union[
+        Literal["asgi"], Literal["bash"], Literal["binary"], Literal["npm"]
+    ] = Field(default="asgi")
     args: list[str] = Field(default_factory=list)
     use_latest: bool = False
 
