@@ -25,7 +25,7 @@ from aleph_message.models import (
     create_message_from_file,
     create_message_from_json,
     create_new_message,
-    parse_message,
+    parse_message, AlephMessage,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
@@ -87,7 +87,7 @@ def test_messages_last_page():
         if message_dict["item_hash"] in HASHES_TO_IGNORE:
             continue
 
-        message = parse_message(message_dict)
+        message: AlephMessage = parse_message(message_dict)
         assert message
 
 
@@ -308,7 +308,7 @@ def test_messages_from_disk():
             data_dict = json.load(page_fd)
         for message_dict in data_dict["messages"]:
             try:
-                message = parse_message(message_dict)
+                message: AlephMessage = parse_message(message_dict)
                 assert message
             except ValidationError as e:
                 console.print("-" * 79)

@@ -12,7 +12,7 @@ from typing import (
     Literal,
     Optional,
     Type,
-    Union,
+    Union, TypeVar, cast,
 )
 
 from pydantic import BaseModel, Extra, Field, validator
@@ -342,14 +342,10 @@ AlephMessage: TypeAlias = Union[
     ForgetMessage,
 ]
 
-AlephMessageType: TypeAlias = Union[
-    Type[PostMessage],
-    Type[AggregateMessage],
-    Type[StoreMessage],
-    Type[ProgramMessage],
-    Type[InstanceMessage],
-    Type[ForgetMessage],
-]
+
+T = TypeVar('T', bound=AlephMessage)
+
+AlephMessageType: TypeAlias = Type[T]
 
 message_classes: List[AlephMessageType] = [
     PostMessage,
@@ -391,16 +387,16 @@ def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
 
 def create_new_message(
     message_dict: Dict,
-    factory: Optional[AlephMessageType] = None,
-) -> AlephMessage:
+    factory: Optional[Type[T]] = None,
+) -> T:
     """Create a new message from a dict.
     Computes the 'item_content' and 'item_hash' fields.
     """
     message_content = add_item_content_and_hash(message_dict)
     if factory:
-        return factory.parse_obj(message_content)
+        return cast(T, factory.parse_obj(message_content))
     else:
-        return parse_message(message_content)
+        return cast(T, parse_message(message_content))
 
 
 def create_message_from_json(
