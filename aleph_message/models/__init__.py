@@ -266,6 +266,13 @@ class BaseMessage(BaseModel):
             raise ValueError("Message cannot be 'confirmed' without 'confirmations'")
         return v
 
+    @validator("time")
+    def check_time(cls, v):
+        if isinstance(v, float):
+            v = datetime.datetime.fromtimestamp(v)
+        assert isinstance(v, datetime.datetime)
+        return v
+
     class Config:
         extra = Extra.forbid
         exclude = {"id_", "_id"}
