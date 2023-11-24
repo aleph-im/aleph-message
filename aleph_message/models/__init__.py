@@ -267,7 +267,7 @@ class BaseMessage(BaseModel):
         return v
 
     @validator("time")
-    def check_time(cls, v):
+    def check_time(cls, v, values):
         if isinstance(v, float):
             v = datetime.datetime.fromtimestamp(v)
         assert isinstance(v, datetime.datetime)
