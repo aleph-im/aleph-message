@@ -183,7 +183,7 @@ class BaseMessage(BaseModel):
     forgotten_by: Optional[List[str]]
 
     @validator("item_content")
-    def check_item_content(cls, v: Optional[str], values):
+    def check_item_content(cls, v: Optional[str], values) -> Optional[str]:
         item_type = values["item_type"]
         if v is None:
             return None
@@ -201,7 +201,7 @@ class BaseMessage(BaseModel):
         return v
 
     @validator("item_hash")
-    def check_item_hash(cls, v, values):
+    def check_item_hash(cls, v: ItemHash, values) -> ItemHash:
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             item_content: str = values["item_content"]
