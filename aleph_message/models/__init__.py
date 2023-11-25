@@ -351,13 +351,22 @@ def parse_message(message_dict: Dict) -> AlephMessage:
         raise ValueError(f"Unknown message type {message_dict['type']}")
 
 
-def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
+def add_item_content_and_hash(
+    message_dict: Dict,
+    inplace: bool = False,
+    factory: Optional[AlephContentType] = None,
+) -> Dict:
     if not inplace:
         message_dict = copy(message_dict)
-
-    message_dict["item_content"] = json.dumps(
-        message_dict["content"], separators=(",", ":")
-    )
+    if factory:
+        content = factory.parse_obj(message_dict["content"])
+        message_dict["item_content"] = json.dumps(
+            content.dict(exclude_none=True), separators=(",", ":")
+        )
+    else:
+        message_dict["item_content"] = json.dumps(
+            message_dict["content"], separators=(",", ":")
+        )
     message_dict["item_hash"] = sha256(
         message_dict["item_content"].encode()
     ).hexdigest()
