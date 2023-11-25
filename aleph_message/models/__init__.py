@@ -1,3 +1,4 @@
+import datetime
 import json
 from copy import copy
 from enum import Enum
@@ -11,7 +12,7 @@ from typing import (
     Literal,
     Optional,
     Type,
-    Union,
+    Union, TypeVar, cast,
 )
 
 from pydantic import BaseModel, Extra, Field, validator
@@ -203,7 +204,7 @@ class BaseMessage(BaseModel):
     size: Optional[int] = Field(
         default=None, description="Size of the content"
     )  # Almost always present
-    time: float = Field(description="Unix timestamp when the message was published")
+    time: datetime.datetime = Field(description="Unix timestamp or datetime when the message was published")
     item_type: ItemType = Field(description="Storage method used for the content")
     item_content: Optional[str] = Field(
         default=None,
@@ -263,6 +264,13 @@ class BaseMessage(BaseModel):
         confirmations = values["confirmations"]
         if v is True and not bool(confirmations):
             raise ValueError("Message cannot be 'confirmed' without 'confirmations'")
+        return v
+
+    @validator("time")
+    def convert_float_to_datetime(cls, v, values):
+        if isinstance(v, float):
+            v = datetime.datetime.fromtimestamp(v)
+        assert isinstance(v, datetime.datetime)
         return v
 
     class Config:
@@ -334,14 +342,10 @@ AlephMessage: TypeAlias = Union[
     ForgetMessage,
 ]
 
-AlephMessageType: TypeAlias = Union[
-    Type[PostMessage],
-    Type[AggregateMessage],
-    Type[StoreMessage],
-    Type[ProgramMessage],
-    Type[InstanceMessage],
-    Type[ForgetMessage],
-]
+
+T = TypeVar('T', bound=AlephMessage)
+
+AlephMessageType: TypeAlias = Type[T]
 
 message_classes: List[AlephMessageType] = [
     PostMessage,
@@ -383,16 +387,16 @@ def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
 
 def create_new_message(
     message_dict: Dict,
-    factory: Optional[AlephMessageType] = None,
-) -> AlephMessage:
+    factory: Optional[Type[T]] = None,
+) -> T:
     """Create a new message from a dict.
     Computes the 'item_content' and 'item_hash' fields.
     """
     message_content = add_item_content_and_hash(message_dict)
     if factory:
-        return factory.parse_obj(message_content)
+        return cast(T, factory.parse_obj(message_content))
     else:
-        return parse_message(message_content)
+        return cast(T, parse_message(message_content))
 
 
 def create_message_from_json(
