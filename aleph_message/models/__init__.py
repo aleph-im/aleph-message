@@ -216,6 +216,9 @@ class BaseMessage(BaseModel):
     )
     item_hash: ItemHash = Field(description="Hash of the content (sha256 by default)")
     content: BaseContent = Field(description="Content of the message, ready to be used")
+    tags: Optional[List[str]] = Field(
+        default=None, description="Tags associated with the message"
+    )
 
     forgotten_by: Optional[List[str]]
 
