@@ -13,7 +13,6 @@ from rich.console import Console
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     AggregateMessage,
-    AlephMessage,
     ForgetMessage,
     InstanceMessage,
     ItemType,
@@ -238,7 +237,7 @@ def test_message_forgotten_by():
     path = os.path.abspath(os.path.join(__file__, "../messages/machine.json"))
     with open(path) as fd:
         message_raw = json.load(fd)
-    message_raw = add_item_content_and_hash(message_raw, factory=ProgramContent)
+    message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
     _ = ProgramMessage.parse_obj(message_raw)

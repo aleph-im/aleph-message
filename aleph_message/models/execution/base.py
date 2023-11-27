@@ -43,3 +43,11 @@ class Payment(HashableModel):
     @property
     def is_stream(self):
         return self.type == PaymentType.superfluid
+
+
+class Interface(str, Enum):
+    """Two types of program interfaces supported:
+    Running plain binary and ASGI apps."""
+
+    asgi = "asgi"
+    binary = "binary"

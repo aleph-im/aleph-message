@@ -277,12 +277,6 @@ class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
     content: ProgramContent
 
-    @classmethod
-    def parse_obj(cls, obj: Dict) -> "ProgramMessage":
-        obj = add_item_content_and_hash(obj, factory=ProgramContent)
-
-        return super().parse_obj(obj)
-
     @validator("content")
     def check_content(cls, v, values):
         item_type = values["item_type"]
@@ -326,15 +320,6 @@ message_classes: List[AlephMessageType] = [
     ForgetMessage,
 ]
 
-AlephContentType: TypeAlias = Union[
-    Type[PostContent],
-    Type[AggregateContent],
-    Type[StoreContent],
-    Type[ProgramContent],
-    Type[InstanceContent],
-    Type[ForgetContent],
-]
-
 ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]
 ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage]
 
@@ -351,22 +336,13 @@ def parse_message(message_dict: Dict) -> AlephMessage:
         raise ValueError(f"Unknown message type {message_dict['type']}")
 
 
-def add_item_content_and_hash(
-    message_dict: Dict,
-    inplace: bool = False,
-    factory: Optional[AlephContentType] = None,
-) -> Dict:
+def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
     if not inplace:
         message_dict = copy(message_dict)
-    if factory:
-        content = factory.parse_obj(message_dict["content"])
-        message_dict["item_content"] = json.dumps(
-            content.dict(exclude_none=True), separators=(",", ":")
-        )
-    else:
-        message_dict["item_content"] = json.dumps(
-            message_dict["content"], separators=(",", ":")
-        )
+
+    message_dict["item_content"] = json.dumps(
+        message_dict["content"], separators=(",", ":")
+    )
     message_dict["item_hash"] = sha256(
         message_dict["item_content"].encode()
     ).hexdigest()
