@@ -5,13 +5,10 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from .environment import (
-    FunctionEnvironment,
-    HostRequirements,
-    MachineResources,
-)
-from .volume import MachineVolume
 from ..abstract import BaseContent, HashableModel
+from .base import Payment
+from .environment import FunctionEnvironment, HostRequirements, MachineResources
+from .volume import MachineVolume
 
 
 class BaseExecutableContent(HashableModel, BaseContent, ABC):
@@ -29,6 +26,7 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
         description="Properties of the execution environment"
     )
     resources: MachineResources = Field(description="System resources required")
+    payment: Optional[Payment] = Field(description="Payment details for the execution")
     requirements: Optional[HostRequirements] = Field(
         default=None, description="System properties required"
     )
