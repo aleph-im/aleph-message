@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 
-from pydantic import Field, validator
+from pydantic import Field
 
 from ..abstract import HashableModel
 from ..item_hash import ItemHash

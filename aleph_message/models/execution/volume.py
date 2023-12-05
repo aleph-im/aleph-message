@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Literal, Optional, Type, Union
+from typing import Literal, Optional, Union
 
-from pydantic import ConstrainedInt, Extra, conint
+from pydantic import ConstrainedInt, Extra
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel

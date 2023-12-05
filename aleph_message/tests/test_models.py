@@ -3,7 +3,6 @@ import os.path
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
-from typing import Dict
 
 import pytest
 import requests
@@ -13,6 +12,7 @@ from rich.console import Console
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     AggregateMessage,
+    AlephMessage,
     ForgetMessage,
     InstanceMessage,
     ItemType,
