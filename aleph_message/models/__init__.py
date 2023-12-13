@@ -178,6 +178,9 @@ class ForgetContent(BaseContent):
 class BaseMessage(BaseModel):
     """Base template for all messages"""
 
+    version: Optional[int] = Field(
+        default=None, description="Version of the message format"
+    )
     id_: Optional[MongodbId] = Field(
         alias="_id",
         default=None,
@@ -185,7 +188,6 @@ class BaseMessage(BaseModel):
         exclude=True,
     )
     chain: Chain = Field(description="Blockchain used for this message")
-
     sender: str = Field(description="Address of the sender")
     type: MessageType = Field(description="Type of message (POST, AGGREGATE or STORE)")
     channel: Optional[str] = Field(
