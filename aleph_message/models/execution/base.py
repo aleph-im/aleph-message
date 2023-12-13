@@ -27,7 +27,7 @@ class PaymentType(str, Enum):
     """Payment type for a program execution."""
 
     hold = "hold"
-    stream = "stream"
+    superfluid = "superfluid"
 
 
 class Payment(HashableModel):
