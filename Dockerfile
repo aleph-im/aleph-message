@@ -4,3 +4,4 @@ RUN pip install pytest requests types-requests pytest-cov mypy twine typing-exte
 COPY . /opt/aleph-message
 WORKDIR /opt/aleph-message
 RUN pip install -e .
+RUN pip install mypy ruff black

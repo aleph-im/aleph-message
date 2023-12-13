@@ -2,11 +2,9 @@ name: Tests
 
 on:
   push:
-    branches:
-      - "*"
   pull_request:
     branches:
-      - "*"
+      - main
 
 jobs:
   build:
@@ -27,10 +25,18 @@ jobs:
       - name: Cache the image on GitHub's repository
         run: docker tag aleph-message:${GITHUB_REF##*/} docker.pkg.github.com/$GITHUB_REPOSITORY/aleph-message-build-cache && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/aleph-message-build-cache || true
 
+      - name: Test with black in the Docker image
+        run: |
+          docker run aleph-message:${GITHUB_REF##*/} black --check aleph_message
+
+      - name: Test with ruff in the Docker image
+        run: |
+          docker run aleph-message:${GITHUB_REF##*/} ruff aleph_message
+
       - name: Pytest in the Docker image
         run: |
           docker run aleph-message:${GITHUB_REF##*/} pytest -vv --cov aleph_message
 
       - name: MyPy in the Docker image
         run: |
-          docker run aleph-message:${GITHUB_REF##*/} mypy aleph_message --ignore-missing-imports --check-untyped-defs
+          docker run aleph-message:${GITHUB_REF##*/} mypy aleph_message --install-types --non-interactive --check-untyped-defs --ignore-missing-imports
