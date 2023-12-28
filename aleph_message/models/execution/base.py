@@ -39,3 +39,7 @@ class Payment(HashableModel):
     """Optional alternative address to send tokens to"""
     type: PaymentType
     """Whether to pay by holding $ALEPH or by streaming tokens"""
+
+    @property
+    def is_stream(self):
+        return self.type == PaymentType.superfluid
