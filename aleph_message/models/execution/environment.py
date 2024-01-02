@@ -81,10 +81,10 @@ class CpuProperties(HashableModel):
     class Config:
         extra = Extra.forbid
 
-class HypervisorType(str, Enum):
-    qemu = 'qemu'
-    firecracker = 'firecracker'
 
+class HypervisorType(str, Enum):
+    qemu = "qemu"
+    firecracker = "firecracker"
 
 
 class FunctionEnvironment(HashableModel):

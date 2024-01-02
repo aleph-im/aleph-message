@@ -13,7 +13,7 @@ from .abstract import BaseContent
 from .base import Chain, HashType, MessageType
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
-from .execution.base import PaymentType, MachineType, Payment
+from .execution.base import PaymentType, MachineType, Payment  # noqa
 from .item_hash import ItemHash, ItemType
 
 

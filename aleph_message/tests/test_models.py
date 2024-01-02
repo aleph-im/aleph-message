@@ -3,7 +3,6 @@ import os.path
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
-from typing import Dict
 
 import pytest
 import requests
@@ -20,7 +19,6 @@ from aleph_message.models import (
     MessageType,
     PostContent,
     PostMessage,
-    ProgramContent,
     ProgramMessage,
     add_item_content_and_hash,
     create_message_from_file,
