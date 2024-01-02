@@ -12,7 +12,6 @@ from rich.console import Console
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     AggregateMessage,
-    AlephMessage,
     ForgetMessage,
     InstanceMessage,
     ItemType,
@@ -20,7 +19,6 @@ from aleph_message.models import (
     MessageType,
     PostContent,
     PostMessage,
-    ProgramContent,
     ProgramMessage,
     add_item_content_and_hash,
     create_message_from_file,
