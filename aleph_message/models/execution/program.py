@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, validator
 
-from .environment import FunctionTriggers
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
-from .base import Encoding, MachineType
+from .base import Encoding, Interface, MachineType
+from .environment import FunctionTriggers
 
 
 class FunctionRuntime(HashableModel):
@@ -23,7 +23,19 @@ class CodeContent(HashableModel):
     encoding: Encoding
     entrypoint: str
     ref: ItemHash  # Must reference a StoreMessage
+    interface: Optional[Interface] = None
+    args: Optional[list[str]] = None
     use_latest: bool = False
+
+    @property
+    def inferred_interface(self) -> Interface:
+        """The initial behaviour is to use asgi, if there is a semicolon in the entrypoint. Else, assume its a binary on port 8000."""
+        if self.interface:
+            return self.interface
+        elif ":" in self.entrypoint:
+            return Interface.asgi
+        else:
+            return Interface.binary
 
 
 class DataContent(HashableModel):

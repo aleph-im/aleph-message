@@ -4,15 +4,7 @@ from copy import copy
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Type,
-    Union, TypeVar, cast,
-)
+from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cast
 
 from pydantic import BaseModel, Extra, Field, validator
 from typing_extensions import TypeAlias
@@ -174,7 +166,9 @@ class BaseMessage(BaseModel):
     size: Optional[int] = Field(
         default=None, description="Size of the content"
     )  # Almost always present
-    time: datetime.datetime = Field(description="Unix timestamp or datetime when the message was published")
+    time: datetime.datetime = Field(
+        description="Unix timestamp or datetime when the message was published"
+    )
     item_type: ItemType = Field(description="Storage method used for the content")
     item_content: Optional[str] = Field(
         default=None,
@@ -189,7 +183,7 @@ class BaseMessage(BaseModel):
     forgotten_by: Optional[List[str]]
 
     @validator("item_content")
-    def check_item_content(cls, v: Optional[str], values):
+    def check_item_content(cls, v: Optional[str], values) -> Optional[str]:
         item_type = values["item_type"]
         if v is None:
             return None
@@ -207,7 +201,7 @@ class BaseMessage(BaseModel):
         return v
 
     @validator("item_hash")
-    def check_item_hash(cls, v, values):
+    def check_item_hash(cls, v: ItemHash, values) -> ItemHash:
         item_type = values["item_type"]
         if item_type == ItemType.inline:
             item_content: str = values["item_content"]
@@ -313,7 +307,7 @@ AlephMessage: TypeAlias = Union[
 ]
 
 
-T = TypeVar('T', bound=AlephMessage)
+T = TypeVar("T", bound=AlephMessage)
 
 AlephMessageType: TypeAlias = Type[T]
 
