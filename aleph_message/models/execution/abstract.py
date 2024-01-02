@@ -10,6 +10,7 @@ from .environment import (
     HostRequirements,
     MachineResources,
 )
+from .base import Payment
 from .volume import MachineVolume
 from ..abstract import BaseContent, HashableModel
 
@@ -29,6 +30,7 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
         description="Properties of the execution environment"
     )
     resources: MachineResources = Field(description="System resources required")
+    payment: Optional[Payment] = Field(description="Payment details for the execution")
     requirements: Optional[HostRequirements] = Field(
         default=None, description="System properties required"
     )

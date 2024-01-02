@@ -1,7 +1,6 @@
 import datetime
 import json
 from copy import copy
-from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
@@ -19,41 +18,11 @@ from pydantic import BaseModel, Extra, Field, validator
 from typing_extensions import TypeAlias
 
 from .abstract import BaseContent
+from .base import Chain, HashType, MessageType
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
+from .execution.base import PaymentType, MachineType, Payment
 from .item_hash import ItemHash, ItemType
-
-
-class Chain(str, Enum):
-    """Supported chains"""
-
-    AVAX = "AVAX"
-    BSC = "BSC"
-    CSDK = "CSDK"
-    DOT = "DOT"
-    ETH = "ETH"
-    NEO = "NEO"
-    NULS = "NULS"
-    NULS2 = "NULS2"
-    SOL = "SOL"
-    TEZOS = "TEZOS"
-
-
-class HashType(str, Enum):
-    """Supported hash functions"""
-
-    sha256 = "sha256"
-
-
-class MessageType(str, Enum):
-    """Message types supported by Aleph"""
-
-    post = "POST"
-    aggregate = "AGGREGATE"
-    store = "STORE"
-    program = "PROGRAM"
-    instance = "INSTANCE"
-    forget = "FORGET"
 
 
 class MongodbId(BaseModel):
