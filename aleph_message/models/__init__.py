@@ -16,7 +16,7 @@ from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .execution.volume import (
     ImmutableVolume,  # noqa
-    )
+)
 from .item_hash import ItemHash, ItemType
 
 
