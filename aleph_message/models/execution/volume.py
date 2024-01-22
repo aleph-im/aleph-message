@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, Dict
 
 from pydantic import ConstrainedInt, Extra
 
@@ -76,3 +76,13 @@ class PersistentVolume(AbstractVolume):
 
 
 MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]
+
+
+def parse_volume(volume_dict: Dict) -> MachineVolume:
+    """Parse a volume dict into a MachineVolume."""
+    if volume_dict["ephemeral"]:
+        return EphemeralVolume(**volume_dict)
+    elif volume_dict["parent"]:
+        return PersistentVolume(**volume_dict)
+    else:
+        return ImmutableVolume(**volume_dict)

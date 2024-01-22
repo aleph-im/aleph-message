@@ -14,6 +14,7 @@ from .base import Chain, HashType, MessageType
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .execution.base import PaymentType, MachineType, Payment  # noqa
+from .execution.volume import MachineVolume, PersistentVolume, EphemeralVolume, ImmutableVolume, parse_volume  # noqa
 from .item_hash import ItemHash, ItemType
 
 
