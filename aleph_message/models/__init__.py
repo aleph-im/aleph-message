@@ -15,12 +15,8 @@ from .execution.base import MachineType, Payment, PaymentType  # noqa
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .execution.volume import (
-    EphemeralVolume,
     ImmutableVolume,  # noqa
-    MachineVolume,
-    PersistentVolume,
-    parse_volume,
-)
+    )
 from .item_hash import ItemHash, ItemType
 
 
