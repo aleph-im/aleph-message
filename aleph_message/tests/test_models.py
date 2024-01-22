@@ -25,6 +25,11 @@ from aleph_message.models import (
     create_message_from_json,
     create_new_message,
     parse_message,
+    parse_volume,
+    MachineVolume,
+    ImmutableVolume,
+    EphemeralVolume,
+    PersistentVolume,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
@@ -88,6 +93,50 @@ def test_messages_last_page():
 
         message = parse_message(message_dict)
         assert message
+
+
+def test_parse_immutable_volume():
+    volume_dict = {
+        "ref": "QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW",
+        "use_latest": True,
+        "comment": "Dummy hash",
+    }
+    volume = parse_volume(volume_dict)
+    volume = parse_volume(volume)
+    assert volume
+    assert isinstance(volume, MachineVolume)
+    assert isinstance(volume, ImmutableVolume)
+
+
+def test_parse_ephemeral_volume():
+    volume_dict = {
+        "comment": "Dummy hash",
+        "ephemeral": True,
+        "size_mib": 1,
+    }
+    volume = parse_volume(volume_dict)
+    volume = parse_volume(volume)
+    assert volume
+    assert isinstance(volume, MachineVolume)
+    assert isinstance(volume, EphemeralVolume)
+
+
+def test_parse_persistent_volume():
+    volume_dict = {
+        "parent": {
+            "ref": "QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW",
+            "use_latest": True,
+            "comment": "Dummy hash",
+        },
+        "persistence": "host",
+        "name": "test",
+        "size_mib": 1,
+    }
+    volume = parse_volume(volume_dict)
+    volume = parse_volume(volume)
+    assert volume
+    assert isinstance(volume, MachineVolume)
+    assert isinstance(volume, PersistentVolume)
 
 
 def test_post_content():

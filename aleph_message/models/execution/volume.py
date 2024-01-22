@@ -78,11 +78,13 @@ class PersistentVolume(AbstractVolume):
 MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]
 
 
-def parse_volume(volume_dict: Dict) -> MachineVolume:
-    """Parse a volume dict into a MachineVolume."""
-    if volume_dict["ephemeral"]:
-        return EphemeralVolume(**volume_dict)
-    elif volume_dict["parent"]:
-        return PersistentVolume(**volume_dict)
+def parse_volume(volume_dict: Union[Dict, MachineVolume]) -> MachineVolume:
+    if isinstance(volume_dict, MachineVolume):
+        return volume_dict
+    for volume_type in [ImmutableVolume, PersistentVolume, EphemeralVolume]:
+        try:
+            return volume_type.parse_obj(volume_dict)
+        except ValueError:
+            continue
     else:
-        return ImmutableVolume(**volume_dict)
+        raise ValueError(f"Could not parse volume: {volume_dict}")
