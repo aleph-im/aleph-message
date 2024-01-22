@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Literal, Optional, Union, Dict
+from typing import Dict, Literal, Optional, Union
 
 from pydantic import ConstrainedInt, Extra
 
