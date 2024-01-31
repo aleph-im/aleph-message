@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from pydantic import ConstrainedInt
+from pydantic import ConstrainedInt, Extra
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
@@ -17,6 +17,11 @@ class AbstractVolume(HashableModel, ABC):
 
     @abstractmethod
     def is_read_only(self): ...
+
+    class Config:
+        # This is the only type where we really need to forbid extra fields.
+        # Otherwise the pydantic_encoder will take the first allowed type instead of the correct one.
+        extra = Extra.forbid
 
 
 class ImmutableVolume(AbstractVolume):
