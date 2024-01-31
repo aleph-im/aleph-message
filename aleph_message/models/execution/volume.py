@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from pydantic import ConstrainedInt, Extra
+from pydantic import ConstrainedInt
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
@@ -18,9 +18,6 @@ class AbstractVolume(HashableModel, ABC):
     @abstractmethod
     def is_read_only(self):
         ...
-
-    class Config:
-        extra = Extra.forbid
 
 
 class ImmutableVolume(AbstractVolume):
