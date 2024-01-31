@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cas
 from pydantic import BaseModel, Extra, Field, validator
 from typing_extensions import TypeAlias
 
+from ..utils import dump_content
 from .abstract import BaseContent
 from .base import Chain, HashType, MessageType
 from .execution.base import MachineType, Payment, PaymentType  # noqa
@@ -126,7 +127,7 @@ class ForgetContent(BaseContent):
     """Content of a FORGET message"""
 
     hashes: List[ItemHash]
-    aggregates: List[ItemHash] = Field(default_factory=list)
+    aggregates: Optional[List[ItemHash]] = None
     reason: Optional[str] = None
 
     def __hash__(self):
@@ -198,6 +199,36 @@ class BaseMessage(BaseModel):
             raise ValueError(
                 f"Field 'item_content' cannot be defined when 'item_type' == '{item_type}'"
             )
+        return v
+
+    @validator("content")
+    def check_content(cls, v, values):
+        item_type = values["item_type"]
+        if item_type == ItemType.inline:
+            try:
+                item_content = json.loads(values["item_content"])
+            except JSONDecodeError:
+                raise ValueError(
+                    "Field 'item_content' does not appear to be valid JSON"
+                )
+            json_dump = json.loads(v.json())
+            for key, value in json_dump.items():
+                if value != item_content[key]:
+                    if isinstance(value, list):
+                        for item in value:
+                            if item not in item_content[key]:
+                                raise ValueError(
+                                    f"Field 'content.{key}' does not match 'item_content.{key}': {item} != {item_content[key]}"
+                                )
+                    if isinstance(value, dict):
+                        for item in value.items():
+                            if item not in item_content[key].items():
+                                raise ValueError(
+                                    f"Field 'content.{key}' does not match 'item_content.{key}': {value} != {item_content[key]}"
+                                )
+                    raise ValueError(
+                        f"Field 'content.{key}' does not match 'item_content.{key}': {value} != {item_content[key]} or type mismatch ({type(value)} != {type(item_content[key])})"
+                    )
         return v
 
     @validator("item_hash")
@@ -277,20 +308,6 @@ class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
     content: ProgramContent
 
-    @validator("content")
-    def check_content(cls, v, values):
-        item_type = values["item_type"]
-        if item_type == ItemType.inline:
-            item_content = json.loads(values["item_content"])
-            if v.dict(exclude_none=True) != item_content:
-                # Print differences
-                vdict = v.dict(exclude_none=True)
-                for key, value in item_content.items():
-                    if vdict[key] != value:
-                        print(f"{key}: {vdict[key]} != {value}")
-                raise ValueError("Content and item_content differ")
-        return v
-
 
 class InstanceMessage(BaseMessage):
     type: Literal[MessageType.instance]
@@ -337,12 +354,12 @@ def parse_message(message_dict: Dict) -> AlephMessage:
 
 
 def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
+    # TODO: I really don't like this function. There is no validation of the
+    # message_dict, if it is indeed a real message, and can lead to unexpected results.
     if not inplace:
         message_dict = copy(message_dict)
 
-    message_dict["item_content"] = json.dumps(
-        message_dict["content"], separators=(",", ":")
-    )
+    message_dict["item_content"] = dump_content(message_dict["content"])
     message_dict["item_hash"] = sha256(
         message_dict["item_content"].encode()
     ).hexdigest()
