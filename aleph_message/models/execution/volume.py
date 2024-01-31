@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, Literal, Optional, Union, get_args
 
 from pydantic import ConstrainedInt, Extra
 
@@ -81,7 +81,7 @@ MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]
 def parse_volume(volume_dict: Union[Dict, MachineVolume]) -> MachineVolume:
     if isinstance(volume_dict, MachineVolume):
         return volume_dict
-    for volume_type in [ImmutableVolume, PersistentVolume, EphemeralVolume]:
+    for volume_type in get_args(MachineVolume):
         try:
             return volume_type.parse_obj(volume_dict)
         except ValueError:
