@@ -11,9 +11,9 @@ from typing_extensions import TypeAlias
 
 from .abstract import BaseContent
 from .base import Chain, HashType, MessageType
+from .execution.base import MachineType, Payment, PaymentType  # noqa
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
-from .execution.base import PaymentType, MachineType, Payment  # noqa
 from .item_hash import ItemHash, ItemType
 
 

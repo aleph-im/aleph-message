@@ -5,14 +5,10 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from .environment import (
-    FunctionEnvironment,
-    HostRequirements,
-    MachineResources,
-)
-from .base import Payment
-from .volume import MachineVolume
 from ..abstract import BaseContent, HashableModel
+from .base import Payment
+from .environment import FunctionEnvironment, HostRequirements, MachineResources
+from .volume import MachineVolume
 
 
 class BaseExecutableContent(HashableModel, BaseContent, ABC):
