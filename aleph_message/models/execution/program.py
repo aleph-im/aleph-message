@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 
 from pydantic import Field
 
@@ -24,7 +24,7 @@ class CodeContent(HashableModel):
     entrypoint: str
     ref: ItemHash  # Must reference a StoreMessage
     interface: Optional[Interface] = None
-    args: Optional[list[str]] = None
+    args: Optional[List[str]] = None
     use_latest: bool = False
 
     @property
