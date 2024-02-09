@@ -16,8 +16,7 @@ class AbstractVolume(HashableModel, ABC):
     mount: Optional[str] = None
 
     @abstractmethod
-    def is_read_only(self):
-        ...
+    def is_read_only(self): ...
 
     class Config:
         extra = Extra.forbid
