@@ -40,17 +40,13 @@ def dump_content(obj: Union[Dict, BaseModel]) -> str:
     """Dump message content as JSON string."""
     if isinstance(obj, dict):
         # without None values
-        obj = obj.copy()
-        for key in list(obj.keys()):
-            if obj[key] is None:
-                del obj[key]
+        obj = {k: v for k, v in obj.items() if v is not None}
         return json.dumps(obj, separators=(",", ":"), default=extended_json_encoder)
-
-    if isinstance(obj, BaseModel):
+    elif isinstance(obj, BaseModel):
         return json.dumps(
             obj.dict(exclude_none=True),
             separators=(",", ":"),
             default=extended_json_encoder,
         )
-
-    raise TypeError(f"Invalid type: `{type(obj)}`")
+    else:
+        raise TypeError(f"Invalid type: `{type(obj)}`")
