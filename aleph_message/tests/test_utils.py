@@ -1,9 +1,14 @@
-from datetime import datetime, date, time
+from datetime import date, datetime, time
 
 import pytest
 from pydantic import BaseModel
 
-from aleph_message.utils import Gigabytes, gigabyte_to_mebibyte, extended_json_encoder, dump_content
+from aleph_message.utils import (
+    Gigabytes,
+    dump_content,
+    extended_json_encoder,
+    gigabyte_to_mebibyte,
+)
 
 
 def test_gigabyte_to_mebibyte():
@@ -25,8 +30,13 @@ def test_dump_content():
         address: str
         time: float
 
-    assert dump_content({"address": "0x1", "time": 1.0}) == '{"address":"0x1","time":1.0}'
-    assert dump_content(TestModel(address="0x1", time=1.0)) == '{"address":"0x1","time":1.0}'
+    assert (
+        dump_content({"address": "0x1", "time": 1.0}) == '{"address":"0x1","time":1.0}'
+    )
+    assert (
+        dump_content(TestModel(address="0x1", time=1.0))
+        == '{"address":"0x1","time":1.0}'
+    )
 
 
 @pytest.mark.parametrize(
