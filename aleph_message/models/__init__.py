@@ -202,7 +202,7 @@ class BaseMessage(BaseModel):
         return v
 
     @validator("content")
-    def check_content(self, v, values):
+    def check_content(cls, v, values):
         """Check that the content matches the serialized item_content"""
         item_type = values["item_type"]
         if item_type != ItemType.inline:
@@ -215,7 +215,8 @@ class BaseMessage(BaseModel):
         json_dump = json.loads(v.json())
         for key, value in json_dump.items():
             if value != item_content[key]:
-                self._raise_value_error(item_content, key, value)
+                cls._raise_value_error(item_content, key, value)
+        return v
 
     @staticmethod
     def _raise_value_error(item_content, key, value):
