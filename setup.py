@@ -48,8 +48,8 @@ setup(
     },
     data_files=[],
     install_requires=[
-        "pydantic~=1.10.5",
-        "typing_extensions~=4.5.0",
+        "pydantic>=1.10.5,<2.0.0",
+        "typing_extensions>=4.5.0",
     ],
     license="MIT",
     platform="any",
