@@ -32,7 +32,7 @@ class ImmutableVolume(AbstractVolume):
 
 class EphemeralVolumeSize(ConstrainedInt):
     gt = 0
-    le = gigabyte_to_mebibyte(10)  # Limit to 10 GB
+    le = gigabyte_to_mebibyte(Gigabytes(10))  # Limit to 10 GB
     strict = True
 
 
