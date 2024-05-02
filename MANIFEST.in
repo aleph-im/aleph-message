@@ -1,0 +1,9 @@
+recursive-include aleph_message *.py
+recursive-include aleph_message *.json
+
+include aleph_message/py.typed
+include LICENSE
+include pytest.ini
+include test.sh
+include Dockerfile
+include .dockerignore
