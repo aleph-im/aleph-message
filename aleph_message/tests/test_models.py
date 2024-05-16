@@ -271,12 +271,12 @@ def test_create_new_message():
         "chain": "ETH",
         "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
         "type": "POST",
-        "time": "1625652287.017",
+        "time": 1625652287.017,
         "item_type": "inline",
         "content": {
             "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
             "type": "test-message",
-            "time": "1625652287.017",
+            "time": 1625652287.017,
             "content": {
                 "hello": "world",
             },

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Extra
 
+from aleph_message.utils import dump_content
+
 
 def hashable(obj):
     """Convert `obj` into a hashable object."""
@@ -26,3 +28,6 @@ class BaseContent(BaseModel):
 
     class Config:
         extra = Extra.forbid
+
+    def json(self, *args, **kwargs):
+        return dump_content(self)
