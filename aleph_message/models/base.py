@@ -30,4 +30,5 @@ class MessageType(str, Enum):
     store = "STORE"
     program = "PROGRAM"
     instance = "INSTANCE"
+    confidential = "CONFIDENTIAL"
     forget = "FORGET"

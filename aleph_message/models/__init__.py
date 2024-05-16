@@ -12,6 +12,7 @@ from typing_extensions import TypeAlias
 from .abstract import BaseContent
 from .base import Chain, HashType, MessageType
 from .execution.base import MachineType, Payment, PaymentType  # noqa
+from .execution.confidential import ConfidentialContent
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .item_hash import ItemHash, ItemType
@@ -297,12 +298,18 @@ class InstanceMessage(BaseMessage):
     content: InstanceContent
 
 
+class ConfidentialMessage(BaseMessage):
+    type: Literal[MessageType.confidential]
+    content: ConfidentialContent
+
+
 AlephMessage: TypeAlias = Union[
     PostMessage,
     AggregateMessage,
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
+    ConfidentialMessage,
     ForgetMessage,
 ]
 
@@ -317,11 +324,16 @@ message_classes: List[AlephMessageType] = [
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
+    ConfidentialMessage,
     ForgetMessage,
 ]
 
-ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]
-ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage]
+ExecutableContent: TypeAlias = Union[
+    InstanceContent, ProgramContent, ConfidentialContent
+]
+ExecutableMessage: TypeAlias = Union[
+    InstanceMessage, ProgramMessage, ConfidentialMessage
+]
 
 
 def parse_message(message_dict: Dict) -> AlephMessage:
