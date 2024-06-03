@@ -28,9 +28,6 @@ class FunctionTriggers(HashableModel):
         description="Persist the execution of the program instead of running it on demand.",
     )
 
-    class Config:
-        extra = Extra.forbid
-
 
 class NetworkProtocol(str, Enum):
     tcp = "tcp"
@@ -78,9 +75,6 @@ class CpuProperties(HashableModel):
         default=None, description="CPU vendor. Allows other vendors."
     )
 
-    class Config:
-        extra = Extra.forbid
-
 
 class HypervisorType(str, Enum):
     qemu = "qemu"
@@ -100,9 +94,6 @@ class NodeRequirements(HashableModel):
     address_regex: Optional[str] = Field(
         default=None, description="Node address must match this regular expression"
     )
-
-    class Config:
-        extra = Extra.forbid
 
 
 class HostRequirements(HashableModel):
