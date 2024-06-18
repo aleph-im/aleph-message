@@ -131,10 +131,8 @@ class TrustedExecutionEnvironment(HashableModel):
 
 
 class InstanceEnvironment(HashableModel):
-    reproducible: bool = False
     internet: bool = False
     aleph_api: bool = False
-    shared_cache: bool = False
     hypervisor: Optional[HypervisorType] = Field(
         default=None, description="Hypervisor application to use. Default value is QEmu"
     )
@@ -142,6 +140,9 @@ class InstanceEnvironment(HashableModel):
         default=None,
         description="Trusted Execution Environment properties. Defaults to no TEE.",
     )
+    # The following fields are kept for retro-compatibility.
+    reproducible: bool = False
+    shared_cache: bool = False
 
 
 class NodeRequirements(HashableModel):
