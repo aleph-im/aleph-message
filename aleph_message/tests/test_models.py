@@ -151,7 +151,9 @@ def test_instance_message_machine():
 
 def test_instance_message_machine_with_confidential_options():
     path = Path(
-        os.path.abspath(os.path.join(__file__, "../messages/instance_confidential_machine.json"))
+        os.path.abspath(
+            os.path.join(__file__, "../messages/instance_confidential_machine.json")
+        )
     )
     message = create_message_from_file(path, factory=InstanceMessage)
 
@@ -159,7 +161,10 @@ def test_instance_message_machine_with_confidential_options():
     assert hash(message.content)
     assert message.content.environment.confidential is True
     assert message.content.environment.confidential_policy == "0x1"
-    assert message.content.requirements.node.node_hash == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
+    assert (
+        message.content.requirements.node.node_hash
+        == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
+    )
 
 
 def test_message_machine_port_mapping():
