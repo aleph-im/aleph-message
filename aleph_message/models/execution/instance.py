@@ -5,6 +5,7 @@ from pydantic import Field
 from aleph_message.models.abstract import HashableModel
 
 from .abstract import BaseExecutableContent
+from .environment import InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
 
 
@@ -25,6 +26,9 @@ class RootfsVolume(HashableModel):
 class InstanceContent(BaseExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
+    environment: InstanceEnvironment = Field(
+        description="Properties of the instance execution environment"
+    )
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )

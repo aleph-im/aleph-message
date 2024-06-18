@@ -31,7 +31,7 @@ jobs:
 
       - name: Test with ruff in the Docker image
         run: |
-          docker run aleph-message:${GITHUB_REF##*/} ruff aleph_message
+          docker run aleph-message:${GITHUB_REF##*/} ruff check aleph_message
 
       - name: Pytest in the Docker image
         run: |
