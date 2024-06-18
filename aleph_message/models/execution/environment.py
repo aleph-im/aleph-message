@@ -77,6 +77,12 @@ class CpuProperties(HashableModel):
     vendor: Optional[Union[Literal["AuthenticAMD", "GenuineIntel"], str]] = Field(
         default=None, description="CPU vendor. Allows other vendors."
     )
+    # Features described here share the naming conventions of CPU flags (/proc/cpuinfo)
+    # but differ in that they must be actually available to the VM.
+    features: Optional[List[str]] = Field(
+        default=None,
+        description="CPU features required by the virtual machine. Examples: 'sev', 'sev_es', 'sev_snp'.",
+    )
 
     class Config:
         extra = Extra.forbid
