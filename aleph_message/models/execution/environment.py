@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
-from pydantic import Extra, Field
+from pydantic import Extra, Field, validator
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
@@ -143,6 +143,12 @@ class InstanceEnvironment(HashableModel):
     # The following fields are kept for retro-compatibility.
     reproducible: bool = False
     shared_cache: bool = False
+
+    @validator("trusted_execution", pre=True)
+    def check_hypervisor(cls, v, values):
+        if v and values.get("hypervisor") != HypervisorType.qemu:
+            raise ValueError("Trusted Execution Environment is only supported for QEmu")
+        return v
 
 
 class NodeRequirements(HashableModel):

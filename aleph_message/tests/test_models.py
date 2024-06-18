@@ -167,6 +167,23 @@ def test_instance_message_machine_with_confidential_options():
     )
 
 
+def test_validation_on_confidential_options():
+    """Ensure that a trusted environment is only allowed for QEmu."""
+    path = Path(__file__).parent / "messages/instance_confidential_machine.json"
+    message_dict = json.loads(path.read_text())
+    # Patch the hypervisor to be something other than QEmu
+    message_dict["content"]["environment"]["hypervisor"] = "firecracker"
+    try:
+        _ = create_new_message(message_dict, factory=InstanceMessage)
+        raise AssertionError("An exception should have been raised before this point.")
+    except ValidationError as e:
+        assert e.errors()[0]["loc"] == ("content", "environment", "trusted_execution")
+        assert (
+            e.errors()[0]["msg"]
+            == "Trusted Execution Environment is only supported for QEmu"
+        )
+
+
 def test_message_machine_port_mapping():
     message_dict = {
         "chain": "ETH",
