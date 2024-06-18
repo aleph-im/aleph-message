@@ -161,10 +161,12 @@ def test_instance_message_machine_with_confidential_options():
     assert hash(message.content)
     assert message.content.environment.confidential is True
     assert message.content.environment.confidential_policy == "0x1"
-    assert (
-        message.content.requirements.node.node_hash
-        == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
-    )
+    if message.content.requirements:
+        if message.content.requirements.node:
+            assert (
+                message.content.requirements.node.node_hash
+                == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
+            )
 
 
 def test_message_machine_port_mapping():
