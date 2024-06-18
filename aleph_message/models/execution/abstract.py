@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
 from ..abstract import BaseContent, HashableModel
 from .base import Payment
-from .environment import FunctionEnvironment, HostRequirements, MachineResources
+from .environment import (
+    FunctionEnvironment,
+    HostRequirements,
+    InstanceEnvironment,
+    MachineResources,
+)
 from .volume import MachineVolume
 
 
@@ -22,7 +27,7 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     variables: Optional[Dict[str, str]] = Field(
         default=None, description="Environment variables available in the VM"
     )
-    environment: FunctionEnvironment = Field(
+    environment: Union[FunctionEnvironment, InstanceEnvironment] = Field(
         description="Properties of the execution environment"
     )
     resources: MachineResources = Field(description="System resources required")

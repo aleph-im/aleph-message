@@ -12,7 +12,6 @@ from rich.console import Console
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     AggregateMessage,
-    ConfidentialMessage,
     ForgetMessage,
     InstanceMessage,
     ItemType,
@@ -150,14 +149,16 @@ def test_instance_message_machine():
     assert hash(message.content)
 
 
-def test_confidential_message_machine():
+def test_instance_message_machine_with_confidential_options():
     path = Path(
-        os.path.abspath(os.path.join(__file__, "../messages/confidential_machine.json"))
+        os.path.abspath(os.path.join(__file__, "../messages/instance_machine.json"))
     )
-    message = create_message_from_file(path, factory=ConfidentialMessage)
+    message = create_message_from_file(path, factory=InstanceMessage)
 
-    assert isinstance(message, ConfidentialMessage)
+    assert isinstance(message, InstanceMessage)
     assert hash(message.content)
+    assert message.content.environment.confidential is True
+    assert message.content.environment.confidential_policy == "0x1"
 
 
 def test_message_machine_port_mapping():

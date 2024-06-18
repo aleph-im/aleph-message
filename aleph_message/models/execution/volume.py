@@ -16,7 +16,8 @@ class AbstractVolume(HashableModel, ABC):
     mount: Optional[str] = None
 
     @abstractmethod
-    def is_read_only(self): ...
+    def is_read_only(self):
+        ...
 
     class Config:
         extra = Extra.forbid
@@ -72,20 +73,6 @@ class PersistentVolume(AbstractVolume):
 
     def is_read_only(self):
         return False
-
-
-class RootfsVolume(HashableModel):
-    """
-    Root file system of a VM instance.
-
-    The root file system of an instance is built as a copy of a reference image, named parent
-    image. The user determines a custom size and persistence model.
-    """
-
-    parent: ParentVolume
-    persistence: VolumePersistence
-    # Use the same size constraint as persistent volumes for now
-    size_mib: PersistentVolumeSizeMib
 
 
 MachineVolume = Union[ImmutableVolume, EphemeralVolume, PersistentVolume]

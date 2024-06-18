@@ -4,7 +4,7 @@
     },
     "chain": "ETH",
     "sender": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
-    "type": "CONFIDENTIAL",
+    "type": "INSTANCE",
     "channel": "Fun-dApps",
     "confirmed": true,
     "content": {
@@ -18,11 +18,14 @@
             "reproducible": true,
             "internet": false,
             "aleph_api": false,
-            "shared_cache": false
+            "shared_cache": false,
+            "hypervisor": "qemu",
+            "confidential": true,
+            "confidential_policy": "0x1"
         },
         "resources": {
             "vcpus": 1,
-            "memory": 2048,
+            "memory": 128,
             "seconds": 30
         },
         "requirements": {
@@ -36,13 +39,7 @@
               "use_latest": true
             },
             "persistence": "host",
-            "size_mib": 20480
-        },
-        "payment": {
-            "chain": "AVAX",
-            "receiver": "0x4145f182EF2F06b45E50468519C1B92C60FBd4A0",
-            "type": "superfluid",
-            "node_hash": "589d81de8531bc8f9281ca43610d6640571228eae07cc879c675ffdb28ffaf3c"
+            "size_mib": 20000
         },
         "authorized_keys": [
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGULT6A41Msmw2KEu0R9MvUjhuWNAsbdeZ0DOwYbt4Qt user@example",

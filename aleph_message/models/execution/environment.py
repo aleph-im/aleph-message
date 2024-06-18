@@ -7,6 +7,7 @@ from pydantic import Extra, Field
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
+from ..item_hash import ItemHash
 
 
 class Subscription(HashableModel):
@@ -92,13 +93,31 @@ class FunctionEnvironment(HashableModel):
     internet: bool = False
     aleph_api: bool = False
     shared_cache: bool = False
-    hypervisor: Optional[HypervisorType]
+
+
+class InstanceEnvironment(HashableModel):
+    reproducible: bool = False
+    internet: bool = False
+    aleph_api: bool = False
+    shared_cache: bool = False
+    hypervisor: Optional[HypervisorType] = Field(
+        default=None, description="Hypervisor application to use. Default value is QEmu"
+    )
+    confidential: Optional[bool] = Field(
+        default=False, description="Confidential Execution Environment"
+    )
+    confidential_policy: Optional[str] = Field(
+        default=None, description="Confidential Policy specification"
+    )
 
 
 class NodeRequirements(HashableModel):
     owner: Optional[str] = Field(default=None, description="Address of the node owner")
     address_regex: Optional[str] = Field(
         default=None, description="Node address must match this regular expression"
+    )
+    node_hash: Optional[ItemHash] = Field(
+        default=None, description="Hash of the compute resource node that must be used"
     )
 
     class Config:
