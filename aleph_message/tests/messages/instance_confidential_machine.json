@@ -20,9 +20,10 @@
             "aleph_api": false,
             "shared_cache": false,
             "hypervisor": "qemu",
-            "confidential": true,
-            "confidential_policy": "0x1",
-            "firmware": "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"
+            "trusted_execution": {
+                "policy": 1,
+                "firmware": "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"
+            }
         },
         "resources": {
             "vcpus": 1,

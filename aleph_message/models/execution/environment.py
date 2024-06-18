@@ -95,6 +95,41 @@ class FunctionEnvironment(HashableModel):
     shared_cache: bool = False
 
 
+class AMDSEVPolicy(int, Enum):
+    """AMD Guest Policy for SEV-ES and SEV.
+
+    The firmware maintains a guest policy provided by the guest owner. This policy is enforced by the
+    firmware and restricts what configuration and operational commands can be performed on this
+    guest by the hypervisor. The policy also requires a minimum firmware level.
+
+    The policy comprises a set of flags that can be combined with bitwise OR.
+
+    See https://github.com/virtee/sev/blob/fbfed998930a0d1e6126462b371890b9f8d77148/src/launch/sev.rs#L245 for reference.
+    """
+
+    NO_DBG = 0b1  # Debugging of the guest is disallowed
+    NO_KS = 0b10  # Sharing keys with other guests is disallowed
+    SEV_ES = 0b100  # SEV-ES is required
+    NO_SEND = 0b1000  # Sending the guest to another platform is disallowed
+    DOMAIN = 0b10000  # The guest must not be transmitted to another platform that is not in the domain
+    SEV = 0b100000  # The guest must not be transmitted to another platform that is not SEV capable
+
+
+class TrustedExecutionEnvironment(HashableModel):
+    """Trusted Execution Environment properties."""
+
+    firmware: Optional[ItemHash] = Field(
+        default=None, description="Confidential OVMF firmware to use"
+    )
+    policy: int = Field(
+        default=AMDSEVPolicy.NO_DBG,
+        description="Policy of the TEE. Default value is 0x01 for SEV without debugging.",
+    )
+
+    class Config:
+        extra = Extra.allow
+
+
 class InstanceEnvironment(HashableModel):
     reproducible: bool = False
     internet: bool = False
@@ -103,14 +138,9 @@ class InstanceEnvironment(HashableModel):
     hypervisor: Optional[HypervisorType] = Field(
         default=None, description="Hypervisor application to use. Default value is QEmu"
     )
-    confidential: Optional[bool] = Field(
-        default=False, description="Confidential Execution Environment"
-    )
-    confidential_policy: Optional[str] = Field(
-        default=None, description="Confidential Policy specification"
-    )
-    firmware: Optional[ItemHash] = Field(
-        default=None, description="Confidential OVMF firmware to use"
+    trusted_execution: Optional[TrustedExecutionEnvironment] = Field(
+        default=None,
+        description="Trusted Execution Environment properties. Defaults to no TEE.",
     )
 
 

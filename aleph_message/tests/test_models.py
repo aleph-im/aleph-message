@@ -26,6 +26,7 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
+from aleph_message.models.execution.environment import AMDSEVPolicy
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
@@ -130,7 +131,7 @@ def test_post_content():
 
 
 def test_message_machine():
-    path = Path(os.path.abspath(os.path.join(__file__, "../messages/machine.json")))
+    path = Path(__file__).parent / "messages/machine.json"
     message = create_message_from_file(path, factory=ProgramMessage)
 
     assert isinstance(message, ProgramMessage)
@@ -140,9 +141,7 @@ def test_message_machine():
 
 
 def test_instance_message_machine():
-    path = Path(
-        os.path.abspath(os.path.join(__file__, "../messages/instance_machine.json"))
-    )
+    path = Path(__file__).parent / "messages/instance_machine.json"
     message = create_message_from_file(path, factory=InstanceMessage)
 
     assert isinstance(message, InstanceMessage)
@@ -150,27 +149,22 @@ def test_instance_message_machine():
 
 
 def test_instance_message_machine_with_confidential_options():
-    path = Path(
-        os.path.abspath(
-            os.path.join(__file__, "../messages/instance_confidential_machine.json")
-        )
-    )
+    path = Path(__file__).parent / "messages/instance_confidential_machine.json"
     message = create_message_from_file(path, factory=InstanceMessage)
 
     assert isinstance(message, InstanceMessage)
     assert hash(message.content)
-    assert message.content.environment.confidential is True
-    assert message.content.environment.confidential_policy == "0x1"
+    assert message.content.environment.trusted_execution
+    assert message.content.environment.trusted_execution.policy == AMDSEVPolicy.NO_DBG
     assert (
-        message.content.environment.firmware
+        message.content.environment.trusted_execution.firmware
         == "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"
     )
-    if message.content.requirements:
-        if message.content.requirements.node:
-            assert (
-                message.content.requirements.node.node_hash
-                == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
-            )
+    assert message.content.requirements and message.content.requirements.node
+    assert (
+        message.content.requirements.node.node_hash
+        == "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
+    )
 
 
 def test_message_machine_port_mapping():
