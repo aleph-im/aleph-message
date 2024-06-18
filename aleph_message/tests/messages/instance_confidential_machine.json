@@ -31,6 +31,9 @@
         "requirements": {
             "cpu": {
                 "architecture": "x86_64"
+            },
+            "node": {
+                "node_hash": "4d4db19afca380fdf06ba7f916153d0f740db9de9eee23ad26ba96a90d8a2920"
             }
         },
         "rootfs": {
