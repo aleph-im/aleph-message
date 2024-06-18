@@ -109,6 +109,9 @@ class InstanceEnvironment(HashableModel):
     confidential_policy: Optional[str] = Field(
         default=None, description="Confidential Policy specification"
     )
+    firmware: Optional[ItemHash] = Field(
+        default=None, description="Confidential OVMF firmware to use"
+    )
 
 
 class NodeRequirements(HashableModel):

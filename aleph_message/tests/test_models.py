@@ -161,6 +161,10 @@ def test_instance_message_machine_with_confidential_options():
     assert hash(message.content)
     assert message.content.environment.confidential is True
     assert message.content.environment.confidential_policy == "0x1"
+    assert (
+        message.content.environment.firmware
+        == "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"
+    )
     if message.content.requirements:
         if message.content.requirements.node:
             assert (
