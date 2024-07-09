@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cas
 from pydantic import BaseModel, Extra, Field, validator
 from typing_extensions import TypeAlias
 
-from .abstract import BaseContent
+from .abstract import BaseContent, HashableModel
 from .base import Chain, HashType, MessageType
 from .execution.base import MachineType, Payment, PaymentType
 from .execution.instance import InstanceContent
@@ -32,6 +32,7 @@ __all__ = [
     "InstanceMessage",
     "ItemHash",
     "ItemType",
+    "HashableModel",
     "MachineType",
     "MessageConfirmation",
     "MessageConfirmationHash",
@@ -40,6 +41,7 @@ __all__ = [
     "PaymentType",
     "PostContent",
     "PostMessage",
+    "BaseContent",
     "ProgramContent",
     "ProgramMessage",
     "StoreContent",
