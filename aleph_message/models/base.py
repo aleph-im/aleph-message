@@ -5,6 +5,7 @@ class Chain(str, Enum):
     """Supported chains"""
 
     AVAX = "AVAX"
+    BASE = "BASE"
     BSC = "BSC"
     CSDK = "CSDK"
     DOT = "DOT"
