@@ -42,7 +42,7 @@ class Payment(HashableModel):
 
     @property
     def is_stream(self):
-        return self.type == PaymentType.superfluid
+        return self.type != PaymentType.hold
 
 
 class Interface(str, Enum):
