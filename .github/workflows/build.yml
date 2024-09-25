@@ -2,9 +2,11 @@ name: Tests
 
 on:
   push:
-  pull_request:
     branches:
       - main
+  pull_request:
+    branches:
+      - "*"
 
 jobs:
   build:
@@ -19,24 +21,12 @@ jobs:
 
       - name: Build the Docker image
         run: |
-          git fetch --prune --unshallow --tags
+          git fetch --tags
           docker build . -t aleph-message:${GITHUB_REF##*/} -f Dockerfile --cache-from=docker.pkg.github.com/$GITHUB_REPOSITORY/aleph-message-build-cache
 
       - name: Cache the image on GitHub's repository
         run: docker tag aleph-message:${GITHUB_REF##*/} docker.pkg.github.com/$GITHUB_REPOSITORY/aleph-message-build-cache && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/aleph-message-build-cache || true
 
-      - name: Test with black in the Docker image
+      - name: Test that aleph_message is correctly installed
         run: |
-          docker run aleph-message:${GITHUB_REF##*/} black --check aleph_message
-
-      - name: Test with ruff in the Docker image
-        run: |
-          docker run aleph-message:${GITHUB_REF##*/} ruff check aleph_message
-
-      - name: Pytest in the Docker image
-        run: |
-          docker run aleph-message:${GITHUB_REF##*/} pytest -vv --cov aleph_message
-
-      - name: MyPy in the Docker image
-        run: |
-          docker run aleph-message:${GITHUB_REF##*/} mypy aleph_message --install-types --non-interactive --check-untyped-defs --ignore-missing-imports
+          docker run aleph-message:${GITHUB_REF##*/} python -c "from aleph_message import parse_message"

@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/hatch/env/virtual/
+          key: ${GITHUB_JOB}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${GITHUB_JOB}
+
+      - run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/python -m pip install --upgrade pip hatch coverage
+
+      - run: /tmp/venv/bin/hatch run linting:all
