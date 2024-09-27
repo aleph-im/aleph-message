@@ -47,9 +47,9 @@ def test_message_response_aggregate():
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
     message = data_dict["messages"][0]
-    AggregateMessage.parse_obj(message)
+    AggregateMessage.model_validate(message)
 
-    response = MessagesResponse.parse_obj(data_dict)
+    response = MessagesResponse.model_validate(data_dict)
     assert response
 
 
@@ -60,7 +60,7 @@ def test_message_response_post():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse.parse_obj(data_dict)
+    response = MessagesResponse.model_validate(data_dict)
     assert response
 
 
@@ -71,7 +71,7 @@ def test_message_response_store():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse.parse_obj(data_dict)
+    response = MessagesResponse.model_validate(data_dict)
     assert response
 
 
@@ -103,7 +103,7 @@ def test_post_content():
         time=1.0,
     )
     assert p1.type == custom_type
-    assert p1.dict() == {
+    assert p1.model_dump() == {
         "address": "0x1",
         "time": 1.0,
         "content": {"blah": "bar"},
@@ -180,7 +180,7 @@ def test_validation_on_confidential_options():
         assert e.errors()[0]["loc"] == ("content", "environment", "trusted_execution")
         assert (
             e.errors()[0]["msg"]
-            == "Trusted Execution Environment is only supported for QEmu"
+            == "Value error, Trusted Execution Environment is only supported for QEmu"
         )
 
 
@@ -262,8 +262,8 @@ def test_message_forget_cannot_be_forgotten():
 
     message_raw["forgotten_by"] = ["abcde"]
     with pytest.raises(ValueError) as e:
-        ForgetMessage.parse_obj(message_raw)
-    assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten",)
+        ForgetMessage.model_validate(message_raw)
+    assert "This type of message may not be forgotten" in str(e.value)
 
 
 def test_message_forgotten_by():
@@ -273,10 +273,10 @@ def test_message_forgotten_by():
     message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
-    _ = ProgramMessage.parse_obj(message_raw)
-    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": None})
-    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde"]})
-    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde", "fghij"]})
+    _ = ProgramMessage.model_validate(message_raw)
+    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": None})
+    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": ["abcde"]})
+    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": ["abcde", "fghij"]})
 
 
 def test_item_type_from_hash():
