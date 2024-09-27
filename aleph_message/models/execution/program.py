@@ -43,8 +43,8 @@ class DataContent(HashableModel):
 
     encoding: Encoding
     mount: str
-    ref: ItemHash
-    use_latest: bool = False
+    ref: Optional[ItemHash] = None
+    use_latest: Optional[bool] = False
 
 
 class Export(HashableModel):
@@ -69,3 +69,7 @@ class ProgramContent(BaseExecutableContent):
         default=None, description="Data to export after computation"
     )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
+
+    metadata: Optional[dict] = None
+    authorized_keys: Optional[List[str]] = None
+    payment: Optional[dict] = None
