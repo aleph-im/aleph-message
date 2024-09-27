@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 import json
 from copy import copy
 from hashlib import sha256
@@ -6,7 +7,8 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cast
 
-from pydantic import BaseModel, Extra, Field, validator
+from aleph_message.models.execution.volume import EphemeralVolumeSize, PersistentVolumeSizeMib
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing_extensions import TypeAlias
 
 from .abstract import BaseContent, HashableModel
@@ -54,8 +56,8 @@ class MongodbId(BaseModel):
 
     oid: str = Field(alias="$oid")
 
-    class Config:
-        extra = Extra.forbid
+
+model_config = ConfigDict(extra="forbid")
 
 
 class ChainRef(BaseModel):
@@ -76,8 +78,7 @@ class MessageConfirmationHash(BaseModel):
     binary: str = Field(alias="$binary")
     type: str = Field(alias="$type")
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class MessageConfirmation(BaseModel):
@@ -93,15 +94,13 @@ class MessageConfirmation(BaseModel):
         default=None, description="The address that published the transaction."
     )
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class AggregateContentKey(BaseModel):
     name: str
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class PostContent(BaseContent):
@@ -116,16 +115,15 @@ class PostContent(BaseContent):
     )
     type: str = Field(description="User-generated 'content-type' of a POST message")
 
-    @validator("type")
+    @field_validator("type")
     def check_type(cls, v, values):
         if v == "amend":
-            ref = values.get("ref")
+            ref = values.data.get("ref")
             if not ref:
                 raise ValueError("A 'ref' is required for POST type 'amend'")
         return v
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class AggregateContent(BaseContent):
@@ -136,8 +134,7 @@ class AggregateContent(BaseContent):
     )
     content: Dict = Field(description="The content of an aggregate must be a dict")
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class StoreContent(BaseContent):
@@ -150,8 +147,7 @@ class StoreContent(BaseContent):
     ref: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata of the VM")
 
-    class Config:
-        extra = Extra.allow
+    model_config = ConfigDict(extra="allow")
 
 
 class ForgetContent(BaseContent):
@@ -214,9 +210,9 @@ class BaseMessage(BaseModel):
 
     forgotten_by: Optional[List[str]]
 
-    @validator("item_content")
+    @field_validator("item_content")
     def check_item_content(cls, v: Optional[str], values) -> Optional[str]:
-        item_type = values["item_type"]
+        item_type = values.data.get("item_type")
         if v is None:
             return None
         elif item_type == ItemType.inline:
@@ -232,14 +228,14 @@ class BaseMessage(BaseModel):
             )
         return v
 
-    @validator("item_hash")
+    @field_validator("item_hash")
     def check_item_hash(cls, v: ItemHash, values) -> ItemHash:
-        item_type = values["item_type"]
+        item_type = values.data.get("item_type")
         if item_type == ItemType.inline:
-            item_content: str = values["item_content"]
+            item_content: str = values.data.get("item_content")
 
             # Double check that the hash function is supported
-            hash_type = values["hash_type"] or HashType.sha256
+            hash_type = values.data.get("hash_type") or HashType.sha256
             assert hash_type.value == HashType.sha256
 
             computed_hash: str = sha256(item_content.encode()).hexdigest()
@@ -255,23 +251,21 @@ class BaseMessage(BaseModel):
             assert item_type == ItemType.storage
         return v
 
-    @validator("confirmed")
+    @field_validator("confirmed")
     def check_confirmed(cls, v, values):
-        confirmations = values["confirmations"]
+        confirmations = values.data.get("confirmations")
         if v is True and not bool(confirmations):
             raise ValueError("Message cannot be 'confirmed' without 'confirmations'")
         return v
 
-    @validator("time")
+    @field_validator("time")
     def convert_float_to_datetime(cls, v, values):
         if isinstance(v, float):
             v = datetime.datetime.fromtimestamp(v)
         assert isinstance(v, datetime.datetime)
         return v
 
-    class Config:
-        extra = Extra.forbid
-        exclude = {"id_", "_id"}
+    model_config = ConfigDict(extra="forbid", exclude={"id_", "_id"})
 
 
 class PostMessage(BaseMessage):
@@ -279,6 +273,7 @@ class PostMessage(BaseMessage):
 
     type: Literal[MessageType.post]
     content: PostContent
+    forgotten_by: Optional[List[str]] = None
 
 
 class AggregateMessage(BaseMessage):
@@ -286,18 +281,22 @@ class AggregateMessage(BaseMessage):
 
     type: Literal[MessageType.aggregate]
     content: AggregateContent
+    forgotten_by: Optional[list] = None
 
 
 class StoreMessage(BaseMessage):
     type: Literal[MessageType.store]
     content: StoreContent
+    forgotten_by: Optional[list] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class ForgetMessage(BaseMessage):
     type: Literal[MessageType.forget]
     content: ForgetContent
+    forgotten_by: Optional[list] = None
 
-    @validator("forgotten_by")
+    @field_validator("forgotten_by")
     def cannot_be_forgotten(cls, v: Optional[List[str]], values) -> Optional[List[str]]:
         assert values
         if v:
@@ -307,26 +306,61 @@ class ForgetMessage(BaseMessage):
 
 class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
-    content: ProgramContent
+    content: Optional[ProgramContent] = None
+    forgotten_by: Optional[List[str]] = None
 
-    @validator("content")
+    @staticmethod
+    def normalize_content(content):
+        if not isinstance(content, dict):
+            return content
+
+        normalized_content = {}
+        for key, value in content.items():
+            # Handle special cases such as ItemHash, Enum, list and dict
+            if isinstance(value, ItemHash):
+                normalized_content[key] = str(value)  # ItemHash to string
+            elif isinstance(value, Enum):
+                normalized_content[key] = value.value  # Enum to string
+            elif isinstance(value, list):
+                normalized_content[key] = [ProgramMessage.normalize_content(v) for v in value]
+            elif isinstance(value, dict):
+                # Special case for 'size_mib' and 'data'
+                if key == 'size_mib':
+                    normalized_content[key] = list(value.values())[0]
+                else:
+                    normalized_content[key] = ProgramMessage.normalize_content(value)
+            else:
+                normalized_content[key] = value  # Keep the value as is
+
+        return normalized_content
+
+
+
+    @field_validator("content")
     def check_content(cls, v, values):
-        item_type = values["item_type"]
+        item_type = values.data.get("item_type")
         if item_type == ItemType.inline:
-            item_content = json.loads(values["item_content"])
-            if v.dict(exclude_none=True) != item_content:
-                # Print differences
-                vdict = v.dict(exclude_none=True)
-                for key, value in item_content.items():
-                    if vdict[key] != value:
-                        print(f"{key}: {vdict[key]} != {value}")
+            item_content = json.loads(values.data.get("item_content"))
+
+            # Normalizing content to fit the structure of item_content
+            normalized_content = cls.normalize_content(v.dict(exclude_none=True))
+
+            if normalized_content != item_content:
+                # Print les différences
+                print("Differences found between content and item_content")
+                print(f"Content: {normalized_content}")
+                print(f"Item Content: {item_content}")
                 raise ValueError("Content and item_content differ")
         return v
+
+
+
 
 
 class InstanceMessage(BaseMessage):
     type: Literal[MessageType.instance]
     content: InstanceContent
+    forgotten_by: Optional[List[str]] = None
 
 
 AlephMessage: TypeAlias = Union[
@@ -363,7 +397,7 @@ def parse_message(message_dict: Dict) -> AlephMessage:
             message_class.__annotations__["type"].__args__[0]
         )
         if message_dict["type"] == message_type:
-            return message_class.parse_obj(message_dict)
+            return message_class.model_validate(message_dict)
     else:
         raise ValueError(f"Unknown message type {message_dict['type']}")
 
@@ -390,7 +424,7 @@ def create_new_message(
     """
     message_content = add_item_content_and_hash(message_dict)
     if factory:
-        return cast(T, factory.parse_obj(message_content))
+        return cast(T, factory.model_validate(message_content))
     else:
         return cast(T, parse_message(message_content))
 
@@ -405,7 +439,7 @@ def create_message_from_json(
     message_dict = json.loads(json_data)
     message_content = add_item_content_and_hash(message_dict, inplace=True)
     if factory:
-        return factory.parse_obj(message_content)
+        return factory.model_validate(message_content)
     else:
         return parse_message(message_content)
 
@@ -422,7 +456,7 @@ def create_message_from_file(
         message_dict = decoder.load(fd)
     message_content = add_item_content_and_hash(message_dict, inplace=True)
     if factory:
-        return factory.parse_obj(message_content)
+        return factory.model_validate(message_content)
     else:
         return parse_message(message_content)
 
@@ -436,5 +470,4 @@ class MessagesResponse(BaseModel):
     pagination_per_page: int
     pagination_item: str
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
