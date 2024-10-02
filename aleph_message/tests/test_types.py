@@ -1,7 +1,7 @@
 import copy
 
 import pytest
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError
 
 from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import ItemHash, ItemType
