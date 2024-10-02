@@ -8,6 +8,7 @@ from aleph_message.models.abstract import HashableModel
 from .abstract import BaseExecutableContent
 from .environment import HypervisorType, InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
+from .base import Payment
 
 
 class RootfsVolume(HashableModel):
@@ -24,7 +25,7 @@ class RootfsVolume(HashableModel):
     size_mib: PersistentVolumeSizeMib
     forgotten_by: Optional[List[str]] = None
 
-    @field_validator('size_mib', mode="before")
+    @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
         if isinstance(v, int):
             return PersistentVolumeSizeMib(persistent_volume_size=v)
@@ -35,7 +36,7 @@ class InstanceContent(BaseExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
     metadata: Optional[dict] = None
-    payment: Optional[dict] = None
+    payment: Optional[Payment] = None
     environment: InstanceEnvironment = Field(
         description="Properties of the instance execution environment"
     )

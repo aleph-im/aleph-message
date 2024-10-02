@@ -7,7 +7,6 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cast
 
-from aleph_message.models.execution.volume import EphemeralVolumeSize, PersistentVolumeSizeMib
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing_extensions import TypeAlias
 
@@ -265,7 +264,10 @@ class BaseMessage(BaseModel):
         assert isinstance(v, datetime.datetime)
         return v
 
-    model_config = ConfigDict(extra="forbid", exclude={"id_", "_id"})
+    model_config = ConfigDict(extra="forbid")
+
+    def custom_dump(self):
+        return self.model_dump(exclude={"id_", "_id"})
 
 
 class PostMessage(BaseMessage):
@@ -306,35 +308,37 @@ class ForgetMessage(BaseMessage):
 
 class ProgramMessage(BaseMessage):
     type: Literal[MessageType.program]
-    content: Optional[ProgramContent] = None
+    content: ProgramContent
     forgotten_by: Optional[List[str]] = None
 
     @staticmethod
-    def normalize_content(content):
+    def normalize_content(content: Union[Dict[str, Any], Any]) -> Any:
         if not isinstance(content, dict):
             return content
 
-        normalized_content = {}
+        normalized_content: Dict[str, Any] = {}
+
         for key, value in content.items():
-            # Handle special cases such as ItemHash, Enum, list and dict
             if isinstance(value, ItemHash):
-                normalized_content[key] = str(value)  # ItemHash to string
+                normalized_content[key] = str(value)
             elif isinstance(value, Enum):
-                normalized_content[key] = value.value  # Enum to string
+                normalized_content[key] = value.value
             elif isinstance(value, list):
-                normalized_content[key] = [ProgramMessage.normalize_content(v) for v in value]
+                if key == "volumes" and all(isinstance(v, str) for v in value):
+                    normalized_content[key] = value
+                else:
+                    normalized_content[key] = [
+                        ProgramMessage.normalize_content(v) for v in value
+                    ]
             elif isinstance(value, dict):
-                # Special case for 'size_mib' and 'data'
-                if key == 'size_mib':
+                if key == "size_mib":
                     normalized_content[key] = list(value.values())[0]
                 else:
                     normalized_content[key] = ProgramMessage.normalize_content(value)
             else:
-                normalized_content[key] = value  # Keep the value as is
+                normalized_content[key] = value
 
         return normalized_content
-
-
 
     @field_validator("content")
     def check_content(cls, v, values):
@@ -343,7 +347,7 @@ class ProgramMessage(BaseMessage):
             item_content = json.loads(values.data.get("item_content"))
 
             # Normalizing content to fit the structure of item_content
-            normalized_content = cls.normalize_content(v.dict(exclude_none=True))
+            normalized_content = cls.normalize_content(v.model_dump(exclude_none=True))
 
             if normalized_content != item_content:
                 # Print les différences
@@ -352,9 +356,6 @@ class ProgramMessage(BaseMessage):
                 print(f"Item Content: {item_content}")
                 raise ValueError("Content and item_content differ")
         return v
-
-
-
 
 
 class InstanceMessage(BaseMessage):

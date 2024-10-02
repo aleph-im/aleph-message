@@ -2,8 +2,9 @@ from enum import Enum
 from functools import lru_cache
 
 from ..exceptions import UnknownHashError
-from pydantic_core import CoreSchema, core_schema
+from pydantic_core import core_schema
 from pydantic import GetCoreSchemaHandler
+
 
 class ItemType(str, Enum):
     """Item storage options"""
@@ -46,14 +47,15 @@ class ItemHash(str):
         return obj
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, source, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+    def __get_pydantic_core_schema__(
+        cls, source, handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
         # This function validates the input after the initial type validation (as a string).
         # The returned value from this function will be used as the final validated value.
 
         # Return a string schema and add a post-validation function to convert to ItemHash
         return core_schema.no_info_after_validator_function(
-            cls.validate,
-            core_schema.str_schema()
+            cls.validate, core_schema.str_schema()
         )
 
     @classmethod
