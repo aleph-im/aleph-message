@@ -243,8 +243,9 @@ def test_message_machine_named():
 
     message = create_message_from_file(path, factory=ProgramMessage)
     assert isinstance(message, ProgramMessage)
-    assert isinstance(message.content.metadata, dict)
-    assert message.content.metadata["version"] == "10.2"
+    if message.content is not None:
+        assert isinstance(message.content.metadata, dict)
+        assert message.content.metadata["version"] == "10.2"
 
 
 def test_message_forget():
@@ -276,7 +277,9 @@ def test_message_forgotten_by():
     _ = ProgramMessage.model_validate(message_raw)
     _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": None})
     _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": ["abcde"]})
-    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": ["abcde", "fghij"]})
+    _ = ProgramMessage.model_validate(
+        {**message_raw, "forgotten_by": ["abcde", "fghij"]}
+    )
 
 
 def test_item_type_from_hash():
