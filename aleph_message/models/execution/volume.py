@@ -22,7 +22,7 @@ class AbstractVolume(HashableModel, ABC):
 
 
 class ImmutableVolume(AbstractVolume):
-    ref: ItemHash = None
+    ref: Optional[ItemHash] = None
     use_latest: bool = True
 
     def is_read_only(self):
@@ -30,9 +30,7 @@ class ImmutableVolume(AbstractVolume):
 
 
 class EphemeralVolumeSize(BaseModel):
-    ephemeral_volume_size: int = Field(gt=0,
-                                       le=1000, #Limit to 1GiB
-                                       strict=True)
+    ephemeral_volume_size: int = Field(gt=-1, le=1000, strict=True)  # Limit to 1GiB
 
     def __hash__(self):
         return hash(self.ephemeral_volume_size)
@@ -40,9 +38,9 @@ class EphemeralVolumeSize(BaseModel):
 
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
-    size_mib: EphemeralVolumeSize = 0
+    size_mib: EphemeralVolumeSize = EphemeralVolumeSize(ephemeral_volume_size=0)
 
-    @field_validator('size_mib', mode="before")
+    @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
         if isinstance(v, int):
             return EphemeralVolumeSize(ephemeral_volume_size=v)
@@ -67,9 +65,9 @@ class VolumePersistence(str, Enum):
 
 
 class PersistentVolumeSizeMib(BaseModel):
-    persistent_volume_size: int = Field(gt=0,
-                                        le=gigabyte_to_mebibyte(Gigabytes(100)), #Limit to 1GiB
-                                        strict=True)
+    persistent_volume_size: int = Field(
+        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 1GiB
+    )
 
     def __hash__(self):
         return hash(self.persistent_volume_size)
@@ -77,11 +75,13 @@ class PersistentVolumeSizeMib(BaseModel):
 
 class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
-    persistence: VolumePersistence = None
+    persistence: Optional[VolumePersistence] = None
     name: Optional[str] = None
-    size_mib: PersistentVolumeSizeMib = 0
+    size_mib: Optional[PersistentVolumeSizeMib] = PersistentVolumeSizeMib(
+        persistent_volume_size=0
+    )
 
-    @field_validator('size_mib', mode="before")
+    @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
         if isinstance(v, int):
             return PersistentVolumeSizeMib(persistent_volume_size=v)

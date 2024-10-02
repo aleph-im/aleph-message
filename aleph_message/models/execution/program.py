@@ -7,7 +7,7 @@ from pydantic import Field
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
-from .base import Encoding, Interface, MachineType
+from .base import Encoding, Interface, MachineType, Payment
 from .environment import FunctionTriggers
 
 
@@ -72,4 +72,4 @@ class ProgramContent(BaseExecutableContent):
 
     metadata: Optional[dict] = None
     authorized_keys: Optional[List[str]] = None
-    payment: Optional[dict] = None
+    payment: Optional[Payment] = None
