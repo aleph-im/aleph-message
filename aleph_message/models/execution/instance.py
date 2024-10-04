@@ -43,3 +43,5 @@ class InstanceContent(BaseExecutableContent):
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
+
+    authorized_keys: Optional[List[str]] = None
