@@ -17,6 +17,12 @@ from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .item_hash import ItemHash, ItemType
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
 __all__ = [
     "AggregateContent",
     "AggregateMessage",
@@ -377,10 +383,10 @@ class ProgramMessage(BaseMessage):
             normalized_content = cls.normalize_content(v.model_dump(exclude_none=True))
 
             if normalized_content != item_content:
-                # Print les différences
-                print("Differences found between content and item_content")
-                print(f"Content: {normalized_content}")
-                print(f"Item Content: {item_content}")
+                # Print the differences to help debugging
+                logger.debug("Differences found between content and item_content")
+                logger.debug(f"Content: {normalized_content}")
+                logger.debug(f"Item Content: {item_content}")
                 raise ValueError("Content and item_content differ")
         return v
 

@@ -27,9 +27,7 @@ class RootfsVolume(HashableModel):
 
     @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
-        if isinstance(v, int):
-            return PersistentVolumeSizeMib(persistent_volume_size=v)
-        return v
+        return PersistentVolumeSizeMib(persistent_volume_size=v)
 
 
 class InstanceContent(BaseExecutableContent):
