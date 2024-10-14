@@ -42,9 +42,7 @@ class EphemeralVolume(AbstractVolume):
 
     @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
-        if isinstance(v, int):
-            return EphemeralVolumeSize(ephemeral_volume_size=v)
-        return v
+        return EphemeralVolumeSize(ephemeral_volume_size=v)
 
     def is_read_only(self):
         return False
@@ -80,9 +78,7 @@ class PersistentVolume(AbstractVolume):
 
     @field_validator("size_mib", mode="before")
     def convert_size_mib(cls, v):
-        if isinstance(v, int):
-            return PersistentVolumeSizeMib(persistent_volume_size=v)
-        return v
+        return PersistentVolumeSizeMib(persistent_volume_size=v)
 
     def is_read_only(self):
         return False
