@@ -4,6 +4,7 @@ from functools import partial
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
+from unittest import mock
 
 import pytest
 import requests
@@ -16,6 +17,7 @@ from aleph_message.models import (
     ForgetMessage,
     InstanceContent,
     InstanceMessage,
+    ItemHash,
     ItemType,
     MessagesResponse,
     MessageType,
@@ -27,7 +29,7 @@ from aleph_message.models import (
     create_message_from_file,
     create_message_from_json,
     create_new_message,
-    parse_message, ItemHash,
+    parse_message,
 )
 from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
 from aleph_message.models.execution.instance import RootfsVolume
@@ -416,7 +418,9 @@ def test_volume_size_constraints():
     # Use partial function to avoid repeating the same code
     create_test_rootfs = partial(
         RootfsVolume,
-        parent=ParentVolume(ref=ItemHash("QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW")),
+        parent=ParentVolume(
+            ref=ItemHash("QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW")
+        ),
         persistence=VolumePersistence.store,
     )
 
@@ -431,6 +435,34 @@ def test_volume_size_constraints():
     # A ValidationError should be raised if the size is greater than 100GiB
     with pytest.raises(ValidationError):
         _ = create_test_rootfs(size_mib=size_mib_rootfs + 1)
+
+
+def test_program_message_content_and_item_content_differ():
+    # Test that a ValidationError is raised if the content and item_content differ
+
+    # Get a program message as JSON-compatible dict
+    path = Path(__file__).parent / "messages/machine.json"
+    with open(path) as fd:
+        message_dict_original = json.load(fd)
+    message_dict: dict = add_item_content_and_hash(message_dict_original, inplace=True)
+
+    # patch hashlib.sha256 with a mock else this raises an error first
+    mock_hash = mock.MagicMock()
+    mock_hash.hexdigest.return_value = (
+        "cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe"
+    )
+    message_dict["item_hash"] = (
+        "cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe"
+    )
+
+    # Patch the content to differ from item_content
+    message_dict["content"]["replaces"] = "does-not-exist"
+
+    # Test that a ValidationError is raised if the content and item_content differ
+    with mock.patch("aleph_message.models.sha256", return_value=mock_hash):
+        with pytest.raises(ValidationError) as excinfo:
+            ProgramMessage.model_validate(message_dict)
+        assert "Content and item_content differ" in str(excinfo.value)
 
 
 @pytest.mark.slow

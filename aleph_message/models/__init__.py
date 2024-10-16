@@ -2,7 +2,6 @@ import datetime
 import json
 import logging
 from copy import copy
-from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
@@ -318,74 +317,19 @@ class ProgramMessage(BaseMessage):
     content: ProgramContent
     forgotten_by: Optional[List[str]] = None
 
-    @staticmethod
-    def normalize_content(content: Union[Dict[str, Any], Any]) -> Any:
-        """
-        Normalizes the structure of a dictionary (`content`) to ensure that its
-        values are correctly formatted and compatible with Pydantic V2
-        This method handles specific cases where certain types
-        (such as `ItemHash`, `Enum`, `list`, and `dict`) require special
-        handling to align with the stricter requirements of Pydantic V2.
-
-        - Converts `ItemHash` instances to their string representation.
-        - Converts `Enum` instances to their corresponding `value`.
-        - Processes lists:
-          - If the key is "volumes" and all elements are strings, the list is
-            left as is.
-          - Otherwise, it recursively normalizes each element of the list.
-        - Processes dictionaries:
-          - If the key is "size_mib", it extracts the first value from the
-            dictionary.
-          - Otherwise, it recursively normalizes the dictionary.
-
-        Args:
-            content (Union[Dict[str, Any], Any]): The dictionary or other data
-            type to normalize.
-
-        Returns:
-            Any: The normalized content, with appropriate transformations
-            applied to `ItemHash`, `Enum`, `list`, and `dict` values, ensuring
-            compatibility withPydantic V2.
-        """
-        if not isinstance(content, dict):
-            return content
-
-        def handle_value(key: str, value: Any) -> Any:
-            if isinstance(value, ItemHash):
-                return str(value)
-            elif isinstance(value, Enum):
-                return value.value
-            elif isinstance(value, list):
-                return (
-                    value
-                    if key == "volumes" and all(isinstance(v, str) for v in value)
-                    else [ProgramMessage.normalize_content(v) for v in value]
-                )
-            elif isinstance(value, dict):
-                return (
-                    list(value.values())[0]
-                    if key == "size_mib"
-                    else ProgramMessage.normalize_content(value)
-                )
-            else:
-                return value
-
-        return {key: handle_value(key, value) for key, value in content.items()}
-
     @field_validator("content")
     def check_content(cls, v, values):
+        """Ensure that the content of the message is correctly formatted."""
         item_type = values.data.get("item_type")
         if item_type == ItemType.inline:
+            # Ensure that the content correct JSON
             item_content = json.loads(values.data.get("item_content"))
-
-            # Normalizing content to fit the structure of item_content
-            normalized_content = cls.normalize_content(v.model_dump(exclude_none=True))
-
-            if normalized_content != item_content:
-                # Print the differences to help debugging
-                logger.debug("Differences found between content and item_content")
-                logger.debug(f"Content: {normalized_content}")
-                logger.debug(f"Item Content: {item_content}")
+            # Ensure that the content matches the expected structure
+            if v.model_dump(exclude_none=True) != item_content:
+                logger.warning(
+                    "Content and item_content differ for message %s",
+                    values.data["item_hash"],
+                )
                 raise ValueError("Content and item_content differ")
         return v
 
@@ -435,7 +379,7 @@ def parse_message(message_dict: Dict) -> AlephMessage:
         raise ValueError(f"Unknown message type {message_dict['type']}")
 
 
-def add_item_content_and_hash(message_dict: Dict, inplace: bool = False):
+def add_item_content_and_hash(message_dict: Dict, inplace: bool = False) -> Dict:
     if not inplace:
         message_dict = copy(message_dict)
 

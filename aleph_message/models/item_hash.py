@@ -2,6 +2,7 @@ from enum import Enum
 from functools import lru_cache
 
 from pydantic import GetCoreSchemaHandler
+from pydantic.functional_serializers import model_serializer
 from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
@@ -34,6 +35,10 @@ class ItemType(str, Enum):
     @classmethod
     def is_ipfs(cls, item_hash: str):
         return cls.from_hash(item_hash) == cls.ipfs
+
+    @model_serializer
+    def __str__(self):
+        return self.value
 
 
 class ItemHash(str):
