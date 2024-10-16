@@ -1,13 +1,14 @@
 import datetime
-from enum import Enum
 import json
+import logging
 from copy import copy
+from enum import Enum
 from hashlib import sha256
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union, cast
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
 from .abstract import BaseContent, HashableModel
@@ -16,8 +17,6 @@ from .execution.base import MachineType, Payment, PaymentType
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .item_hash import ItemHash, ItemType
-
-import logging
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

@@ -1,15 +1,18 @@
 from __future__ import annotations
-from typing import Optional, List
 
-from pydantic import Field, field_validator
+from typing import List, Optional
+
+from pydantic import Field
 
 from aleph_message.models.abstract import HashableModel
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
 from .environment import HypervisorType, InstanceEnvironment
-from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
+from .volume import ParentVolume, VolumePersistence
 from .base import Payment
+from .environment import InstanceEnvironment
+from .volume import ParentVolume, VolumePersistence
 
 
 class RootfsVolume(HashableModel):

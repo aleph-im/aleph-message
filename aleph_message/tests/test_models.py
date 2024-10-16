@@ -1,12 +1,12 @@
 import json
 import os.path
+from functools import partial
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
 
 import pytest
 import requests
-from functools import partial
 from pydantic import ValidationError
 from rich.console import Console
 
@@ -31,9 +31,11 @@ from aleph_message.models import (
 )
 from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
 from aleph_message.models.execution.instance import RootfsVolume
-from aleph_message.models.execution.volume import (EphemeralVolume,
-                                                   ParentVolume,
-                                                   VolumePersistence)
+from aleph_message.models.execution.volume import (
+    EphemeralVolume,
+    ParentVolume,
+    VolumePersistence,
+)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 from aleph_message.utils import Gigabytes, Mebibytes, gigabyte_to_mebibyte
 

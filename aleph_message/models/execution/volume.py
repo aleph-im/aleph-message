@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
