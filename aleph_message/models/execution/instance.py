@@ -5,6 +5,7 @@ from pydantic import Field, field_validator
 
 from aleph_message.models.abstract import HashableModel
 
+from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
 from .environment import InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
@@ -22,12 +23,10 @@ class RootfsVolume(HashableModel):
     parent: ParentVolume
     persistence: VolumePersistence
     # Use the same size constraint as persistent volumes for now
-    size_mib: PersistentVolumeSizeMib
+    size_mib: int = Field(
+        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 1GiB
+    )
     forgotten_by: Optional[List[str]] = None
-
-    @field_validator("size_mib", mode="before")
-    def convert_size_mib(cls, v):
-        return PersistentVolumeSizeMib(persistent_volume_size=v)
 
 
 class InstanceContent(BaseExecutableContent):
