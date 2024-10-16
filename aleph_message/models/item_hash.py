@@ -1,9 +1,10 @@
 from enum import Enum
 from functools import lru_cache
 
-from ..exceptions import UnknownHashError
-from pydantic_core import core_schema
 from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema
+
+from ..exceptions import UnknownHashError
 
 
 class ItemType(str, Enum):
