@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from pydantic import Field, ConfigDict, BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
@@ -29,20 +29,11 @@ class ImmutableVolume(AbstractVolume):
         return True
 
 
-class EphemeralVolumeSize(BaseModel):
-    ephemeral_volume_size: int = Field(gt=-1, le=1000, strict=True)  # Limit to 1GiB
-
-    def __hash__(self):
-        return hash(self.ephemeral_volume_size)
-
-
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
-    size_mib: EphemeralVolumeSize = EphemeralVolumeSize(ephemeral_volume_size=0)
-
-    @field_validator("size_mib", mode="before")
-    def convert_size_mib(cls, v):
-        return EphemeralVolumeSize(ephemeral_volume_size=v)
+    size_mib: int = Field(
+        gt=0, le=gigabyte_to_mebibyte(Gigabytes(1)), strict=True  # Limit to 1GiB
+    )
 
     def is_read_only(self):
         return False
@@ -72,13 +63,9 @@ class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
     persistence: Optional[VolumePersistence] = None
     name: Optional[str] = None
-    size_mib: Optional[PersistentVolumeSizeMib] = PersistentVolumeSizeMib(
-        persistent_volume_size=0
+    size_mib: int = Field(
+        gt=0, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 100GiB
     )
-
-    @field_validator("size_mib", mode="before")
-    def convert_size_mib(cls, v):
-        return PersistentVolumeSizeMib(persistent_volume_size=v)
 
     def is_read_only(self):
         return False
