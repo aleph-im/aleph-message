@@ -25,35 +25,35 @@ class ModelWithItemHash(BaseModel):
 
 def test_item_hash():
     storage_object_dict = {"hash": STORAGE_HASH}
-    storage_object = ModelWithItemHash.parse_obj(storage_object_dict)
+    storage_object = ModelWithItemHash.model_validate(storage_object_dict)
     assert storage_object.hash == STORAGE_HASH
     assert storage_object.hash.item_type == ItemType.storage
 
     ipfs_object_dict = {"hash": IPFS_HASH}
-    ipfs_object = ModelWithItemHash.parse_obj(ipfs_object_dict)
+    ipfs_object = ModelWithItemHash.model_validate(ipfs_object_dict)
     assert ipfs_object.hash == IPFS_HASH
     assert ipfs_object.hash.item_type == ItemType.ipfs
     assert repr(ipfs_object.hash).startswith("<ItemHash value='")
 
     invalid_object_dict = {"hash": "fake-hash"}
     with pytest.raises(ValidationError):
-        _ = ModelWithItemHash.parse_obj(invalid_object_dict)
+        _ = ModelWithItemHash.model_validate(invalid_object_dict)
 
     with pytest.raises(ValidationError):
-        _ = ModelWithItemHash.parse_obj({"hash": 12345})
+        _ = ModelWithItemHash.model_validate({"hash": 12345})
 
 
 def test_item_hash_serialization():
     ipfs_object = ModelWithItemHash(hash=STORAGE_HASH)
     assert (
-        ipfs_object.json()
-        == '{"hash": "b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"}'
+        ipfs_object.model_dump_json()
+        == '{"hash":"b236db23bf5ad005ad7f5d82eed08a68a925020f0755b2a59c03f784499198eb"}'
     )
 
     ipfs_object = ModelWithItemHash(hash=IPFS_HASH)
     assert (
-        ipfs_object.json()
-        == '{"hash": "QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"}'
+        ipfs_object.model_dump_json()
+        == '{"hash":"QmPxCe3eHVCdTG5uKnSZTsPGrYvMFTWAAt4PSfK7ETkz4d"}'
     )
 
 

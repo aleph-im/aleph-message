@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from pydantic import Field
 
 from aleph_message.models.abstract import HashableModel
 
+from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
+from .base import Payment
 from .environment import InstanceEnvironment
-from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
+from .volume import ParentVolume, VolumePersistence
 
 
 class RootfsVolume(HashableModel):
@@ -20,15 +24,22 @@ class RootfsVolume(HashableModel):
     parent: ParentVolume
     persistence: VolumePersistence
     # Use the same size constraint as persistent volumes for now
-    size_mib: PersistentVolumeSizeMib
+    size_mib: int = Field(
+        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 1GiB
+    )
+    forgotten_by: Optional[List[str]] = None
 
 
 class InstanceContent(BaseExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
+    metadata: Optional[dict] = None
+    payment: Optional[Payment] = None
     environment: InstanceEnvironment = Field(
         description="Properties of the instance execution environment"
     )
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
+
+    authorized_keys: Optional[List[str]] = None
