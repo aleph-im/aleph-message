@@ -35,7 +35,7 @@ class Payment(HashableModel):
 
     chain: Chain
     """Which chain to check for funds"""
-    receiver: Optional[str] = None
+    receiver: Optional[str]
     """Optional alternative address to send tokens to"""
     type: PaymentType
     """Whether to pay by holding $ALEPH or by streaming tokens"""

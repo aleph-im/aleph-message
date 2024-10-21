@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import Extra, Field, validator
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
@@ -13,7 +13,8 @@ from ..item_hash import ItemHash
 class Subscription(HashableModel):
     """A subscription is used to trigger a program in response to a FunctionTrigger."""
 
-    model_config = ConfigDict(extra="allow")
+    class Config:
+        extra = Extra.allow
 
 
 class FunctionTriggers(HashableModel):
@@ -28,7 +29,8 @@ class FunctionTriggers(HashableModel):
         description="Persist the execution of the program instead of running it on demand.",
     )
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = Extra.forbid
 
 
 class NetworkProtocol(str, Enum):
@@ -83,7 +85,8 @@ class CpuProperties(HashableModel):
         description="CPU features required by the virtual machine. Examples: 'sev', 'sev_es', 'sev_snp'.",
     )
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = Extra.forbid
 
 
 class HypervisorType(str, Enum):
@@ -129,7 +132,8 @@ class TrustedExecutionEnvironment(HashableModel):
         description="Policy of the TEE. Default value is 0x01 for SEV without debugging.",
     )
 
-    model_config = ConfigDict(extra="allow")
+    class Config:
+        extra = Extra.allow
 
 
 class InstanceEnvironment(HashableModel):
@@ -146,9 +150,9 @@ class InstanceEnvironment(HashableModel):
     reproducible: bool = False
     shared_cache: bool = False
 
-    @field_validator("trusted_execution", mode="before")
+    @validator("trusted_execution", pre=True)
     def check_hypervisor(cls, v, values):
-        if v and values.data.get("hypervisor") != HypervisorType.qemu:
+        if v and values.get("hypervisor") != HypervisorType.qemu:
             raise ValueError("Trusted Execution Environment is only supported for QEmu")
         return v
 
@@ -162,7 +166,8 @@ class NodeRequirements(HashableModel):
         default=None, description="Hash of the compute resource node that must be used"
     )
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = Extra.forbid
 
 
 class HostRequirements(HashableModel):
@@ -173,4 +178,6 @@ class HostRequirements(HashableModel):
         default=None, description="Required Compute Resource Node properties"
     )
 
-    model_config = ConfigDict(extra="allow")
+    class Config:
+        # Allow users to add custom requirements
+        extra = Extra.allow

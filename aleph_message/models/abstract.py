@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, Extra
 
 
 def hashable(obj):
@@ -24,4 +24,5 @@ class BaseContent(BaseModel):
     address: str
     time: float
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = Extra.forbid

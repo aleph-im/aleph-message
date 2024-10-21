@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from pydantic import ConfigDict, Field
+from pydantic import ConstrainedInt, Extra
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
@@ -18,22 +18,27 @@ class AbstractVolume(HashableModel, ABC):
     @abstractmethod
     def is_read_only(self): ...
 
-    model_config = ConfigDict(extra="forbid")
+    class Config:
+        extra = Extra.forbid
 
 
 class ImmutableVolume(AbstractVolume):
-    ref: Optional[ItemHash] = None
+    ref: ItemHash
     use_latest: bool = True
 
     def is_read_only(self):
         return True
 
 
+class EphemeralVolumeSize(ConstrainedInt):
+    gt = 0
+    le = 1000  # Limit to 1 GiB
+    strict = True
+
+
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
-    size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(1)), strict=True  # Limit to 1GiB
-    )
+    size_mib: EphemeralVolumeSize
 
     def is_read_only(self):
         return False
@@ -53,13 +58,17 @@ class VolumePersistence(str, Enum):
     store = "store"
 
 
+class PersistentVolumeSizeMib(ConstrainedInt):
+    gt = 0
+    le = gigabyte_to_mebibyte(Gigabytes(512))
+    strict = True  # Limit to 512 GB
+
+
 class PersistentVolume(AbstractVolume):
-    parent: Optional[ParentVolume] = None
-    persistence: Optional[VolumePersistence] = None
-    name: Optional[str] = None
-    size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(512)), strict=True  # Limit to 100GiB
-    )
+    parent: Optional[ParentVolume]
+    persistence: VolumePersistence
+    name: str
+    size_mib: PersistentVolumeSizeMib
 
     def is_read_only(self):
         return False
