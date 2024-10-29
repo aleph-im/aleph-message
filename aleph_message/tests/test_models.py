@@ -375,10 +375,10 @@ def test_volume_size_constraints():
     # A ValidationError should be raised if the size negative
     with pytest.raises(ValidationError):
         _ = create_test_rootfs(size_mib=-1)
-    size_mib_rootfs: Mebibytes = gigabyte_to_mebibyte(Gigabytes(100))
-    # A size of 100GiB should be allowed
+    size_mib_rootfs: Mebibytes = gigabyte_to_mebibyte(Gigabytes(512))
+    # A size of 512 GiB should be allowed
     _ = create_test_rootfs(size_mib=size_mib_rootfs)
-    # A ValidationError should be raised if the size is greater than 100GiB
+    # A ValidationError should be raised if the size is greater than 512 GiB
     with pytest.raises(ValidationError):
         _ = create_test_rootfs(size_mib=size_mib_rootfs + 1)
 
