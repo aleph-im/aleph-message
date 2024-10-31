@@ -60,7 +60,7 @@ class VolumePersistence(str, Enum):
 
 class PersistentVolumeSizeMib(ConstrainedInt):
     gt = 0
-    le = gigabyte_to_mebibyte(Gigabytes(100))
+    le = gigabyte_to_mebibyte(Gigabytes(512))
     strict = True  # Limit to 100 GiB
 
 
