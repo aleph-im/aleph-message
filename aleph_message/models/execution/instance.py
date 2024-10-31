@@ -25,7 +25,7 @@ class RootfsVolume(HashableModel):
     persistence: VolumePersistence
     # Use the same size constraint as persistent volumes for now
     size_mib: int = Field(
-        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(512)), strict=True  # Limit to 1GiB
+        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 1GiB
     )
     forgotten_by: Optional[List[str]] = None
 

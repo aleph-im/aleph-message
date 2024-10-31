@@ -58,7 +58,7 @@ class PersistentVolume(AbstractVolume):
     persistence: Optional[VolumePersistence] = None
     name: Optional[str] = None
     size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(512)), strict=True  # Limit to 512GiB
+        gt=0, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 100GiB
     )
 
     def is_read_only(self):
