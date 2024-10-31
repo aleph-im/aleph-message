@@ -1,10 +1,8 @@
 import json
 import os.path
-from functools import partial
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
-from unittest import mock
 
 import pytest
 import requests
@@ -16,7 +14,6 @@ from aleph_message.models import (
     AggregateMessage,
     ForgetMessage,
     InstanceMessage,
-    ItemHash,
     ItemType,
     MessagesResponse,
     MessageType,
@@ -30,14 +27,7 @@ from aleph_message.models import (
     parse_message,
 )
 from aleph_message.models.execution.environment import AMDSEVPolicy
-from aleph_message.models.execution.instance import RootfsVolume
-from aleph_message.models.execution.volume import (
-    EphemeralVolume,
-    ParentVolume,
-    VolumePersistence,
-)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
-from aleph_message.utils import Gigabytes, Mebibytes, gigabyte_to_mebibyte
 
 console = Console(color_system="windows")
 
@@ -57,9 +47,9 @@ def test_message_response_aggregate():
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
     message = data_dict["messages"][0]
-    AggregateMessage.model_validate(message)
+    AggregateMessage.parse_obj(message)
 
-    response = MessagesResponse.model_validate(data_dict)
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -70,7 +60,7 @@ def test_message_response_post():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse.model_validate(data_dict)
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -81,7 +71,7 @@ def test_message_response_store():
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
-    response = MessagesResponse.model_validate(data_dict)
+    response = MessagesResponse.parse_obj(data_dict)
     assert response
 
 
@@ -113,7 +103,7 @@ def test_post_content():
         time=1.0,
     )
     assert p1.type == custom_type
-    assert p1.model_dump() == {
+    assert p1.dict() == {
         "address": "0x1",
         "time": 1.0,
         "content": {"blah": "bar"},
@@ -190,7 +180,7 @@ def test_validation_on_confidential_options():
         assert e.errors()[0]["loc"] == ("content", "environment", "trusted_execution")
         assert (
             e.errors()[0]["msg"]
-            == "Value error, Trusted Execution Environment is only supported for QEmu"
+            == "Trusted Execution Environment is only supported for QEmu"
         )
 
 
@@ -253,9 +243,8 @@ def test_message_machine_named():
 
     message = create_message_from_file(path, factory=ProgramMessage)
     assert isinstance(message, ProgramMessage)
-    if message.content is not None:
-        assert isinstance(message.content.metadata, dict)
-        assert message.content.metadata["version"] == "10.2"
+    assert isinstance(message.content.metadata, dict)
+    assert message.content.metadata["version"] == "10.2"
 
 
 def test_message_forget():
@@ -273,8 +262,8 @@ def test_message_forget_cannot_be_forgotten():
 
     message_raw["forgotten_by"] = ["abcde"]
     with pytest.raises(ValueError) as e:
-        ForgetMessage.model_validate(message_raw)
-    assert "This type of message may not be forgotten" in str(e.value)
+        ForgetMessage.parse_obj(message_raw)
+    assert e.value.args[0][0].exc.args == ("This type of message may not be forgotten",)
 
 
 def test_message_forgotten_by():
@@ -284,12 +273,10 @@ def test_message_forgotten_by():
     message_raw = add_item_content_and_hash(message_raw)
 
     # Test different values for field 'forgotten_by'
-    _ = ProgramMessage.model_validate(message_raw)
-    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": None})
-    _ = ProgramMessage.model_validate({**message_raw, "forgotten_by": ["abcde"]})
-    _ = ProgramMessage.model_validate(
-        {**message_raw, "forgotten_by": ["abcde", "fghij"]}
-    )
+    _ = ProgramMessage.parse_obj(message_raw)
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": None})
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde"]})
+    _ = ProgramMessage.parse_obj({**message_raw, "forgotten_by": ["abcde", "fghij"]})
 
 
 def test_item_type_from_hash():
@@ -345,70 +332,6 @@ def test_create_new_message():
     )
     assert new_message_1 == new_message_2
     assert create_message_from_json(json.dumps(message_dict))
-
-
-def test_volume_size_constraints():
-    """Test size constraints for volumes"""
-
-    _ = EphemeralVolume(size_mib=1)
-    # A ValidationError should be raised if the size negative
-    with pytest.raises(ValidationError):
-        _ = EphemeralVolume(size_mib=-1)
-    size_mib: Mebibytes = gigabyte_to_mebibyte(Gigabytes(1))
-    # A size of 1GiB should be allowed
-    _ = EphemeralVolume(size_mib=size_mib)
-    # A ValidationError should be raised if the size is greater than 1GiB
-    with pytest.raises(ValidationError):
-        _ = EphemeralVolume(size_mib=size_mib + 1)
-
-    # Use partial function to avoid repeating the same code
-    create_test_rootfs = partial(
-        RootfsVolume,
-        parent=ParentVolume(
-            ref=ItemHash("QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW")
-        ),
-        persistence=VolumePersistence.store,
-    )
-
-    _ = create_test_rootfs(size_mib=1)
-
-    # A ValidationError should be raised if the size negative
-    with pytest.raises(ValidationError):
-        _ = create_test_rootfs(size_mib=-1)
-    size_mib_rootfs: Mebibytes = gigabyte_to_mebibyte(Gigabytes(512))
-    # A size of 512 GiB should be allowed
-    _ = create_test_rootfs(size_mib=size_mib_rootfs)
-    # A ValidationError should be raised if the size is greater than 512 GiB
-    with pytest.raises(ValidationError):
-        _ = create_test_rootfs(size_mib=size_mib_rootfs + 1)
-
-
-def test_program_message_content_and_item_content_differ():
-    # Test that a ValidationError is raised if the content and item_content differ
-
-    # Get a program message as JSON-compatible dict
-    path = Path(__file__).parent / "messages/machine.json"
-    with open(path) as fd:
-        message_dict_original = json.load(fd)
-    message_dict: dict = add_item_content_and_hash(message_dict_original, inplace=True)
-
-    # patch hashlib.sha256 with a mock else this raises an error first
-    mock_hash = mock.MagicMock()
-    mock_hash.hexdigest.return_value = (
-        "cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe"
-    )
-    message_dict["item_hash"] = (
-        "cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe"
-    )
-
-    # Patch the content to differ from item_content
-    message_dict["content"]["replaces"] = "does-not-exist"
-
-    # Test that a ValidationError is raised if the content and item_content differ
-    with mock.patch("aleph_message.models.sha256", return_value=mock_hash):
-        with pytest.raises(ValidationError) as excinfo:
-            ProgramMessage.model_validate(message_dict)
-        assert "Content and item_content differ" in str(excinfo.value)
 
 
 @pytest.mark.slow
