@@ -53,12 +53,6 @@ class VolumePersistence(str, Enum):
     store = "store"
 
 
-class PersistentVolumeSizeMib(ConstrainedInt):
-    gt = 0
-    le = gigabyte_to_mebibyte(Gigabytes(512))
-    strict = True  # Limit to 100 GiB
-
-    
 class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
     persistence: Optional[VolumePersistence] = None
