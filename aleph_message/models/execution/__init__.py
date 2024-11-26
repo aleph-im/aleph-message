@@ -1,7 +1,7 @@
 from .abstract import BaseExecutableContent
+from .base import Encoding, Interface, MachineType, Payment, PaymentType
 from .instance import InstanceContent
 from .program import ProgramContent
-from .base import Encoding, MachineType, PaymentType, Payment, Interface
 
 __all__ = [
     "BaseExecutableContent",
