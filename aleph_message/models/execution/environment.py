@@ -89,6 +89,24 @@ class CpuProperties(HashableModel):
         extra = Extra.forbid
 
 
+class GpuProperties(HashableModel):
+    """GPU properties."""
+
+    domain_bus_device_func: str = Field(
+        description="Domain, bus, device, and function numbers"
+    )
+    class_name: str = Field(description="Class of the device")
+    class_code: str = Field(description="Class code of the device")
+    name: str = Field(description="Name of the device (vendor and model)")
+    vendor_and_device_id: str = Field(description="Vendor ID and device ID")
+    revision: Optional[str] = Field(
+        default=None, description="Revision number of the device"
+    )
+
+    class Config:
+        extra = Extra.forbid
+
+
 class HypervisorType(str, Enum):
     qemu = "qemu"
     firecracker = "firecracker"
