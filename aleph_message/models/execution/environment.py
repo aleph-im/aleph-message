@@ -191,7 +191,7 @@ class HostRequirements(HashableModel):
     node: Optional[NodeRequirements] = Field(
         default=None, description="Required Compute Resource Node properties"
     )
-    gpus: Optional[List[GpuProperties]] = Field(
+    gpu: Optional[List[GpuProperties]] = Field(
         default=None, description="GPUs needed to pass-through from the host"
     )
 

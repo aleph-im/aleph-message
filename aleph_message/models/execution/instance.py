@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import Self
-
 from pydantic import Field, root_validator
 
 from aleph_message.models.abstract import HashableModel
 
 from .abstract import BaseExecutableContent
-from .environment import InstanceEnvironment
+from .environment import InstanceEnvironment, HypervisorType
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
 
 
@@ -35,9 +33,15 @@ class InstanceContent(BaseExecutableContent):
         description="Root filesystem of the system, will be booted by the kernel"
     )
 
-    @root_validator(pre=True)
-    def check_gpu_requirement(self) -> Self:
-        if self.requirements and self.requirements.gpus:
-            if self.payment and not self.payment.is_stream:
+    @root_validator()
+    def check_gpu_requirement(cls, values):
+        if values.get("requirements") and values.get("requirements").gpu:
+            if values.get("payment") and not values.get("payment").is_stream:
                 raise ValueError("Stream payment type is needed for GPU requirement")
-        return self
+
+            if (
+                values.get("environment")
+                and values.get("environment").hypervisor != HypervisorType.qemu
+            ):
+                raise ValueError("GPU option is only supported for QEmu hypervisor")
+        return values
