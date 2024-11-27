@@ -89,6 +89,26 @@ class CpuProperties(HashableModel):
         extra = Extra.forbid
 
 
+class GpuProperties(HashableModel):
+    """GPU properties."""
+
+    vendor: str = Field(
+        description="GPU vendor name"
+    )
+    device_name: str = Field(
+        description="GPU vendor card name"
+    )
+    device_class: Literal["0300", "0302"] = Field(
+        description="GPU device class. Look at https://admin.pci-ids.ucw.cz/read/PD/03"
+    )
+    device_id: str = Field(
+        description="GPU vendor & device ids"
+    )
+
+    class Config:
+        extra = Extra.forbid
+
+
 class HypervisorType(str, Enum):
     qemu = "qemu"
     firecracker = "firecracker"
@@ -176,6 +196,9 @@ class HostRequirements(HashableModel):
     )
     node: Optional[NodeRequirements] = Field(
         default=None, description="Required Compute Resource Node properties"
+    )
+    gpus: Optional[List[GpuProperties]] = Field(
+        default=None, description="GPUs needed to pass-through from the host"
     )
 
     class Config:
