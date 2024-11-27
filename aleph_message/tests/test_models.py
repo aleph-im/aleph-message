@@ -14,6 +14,7 @@ from aleph_message.models import (
     AggregateMessage,
     ForgetMessage,
     InstanceMessage,
+    InstanceContent,
     ItemType,
     MessagesResponse,
     MessageType,
@@ -402,3 +403,37 @@ def test_messages_from_disk():
                 console.print(message_dict)
                 console.print_json(e.json())
                 raise
+
+
+def test_terms_and_conditions_only_for_payg_instances():
+    """Ensure that only instance with PAYG and a node_hash can have a terms_and_conditions"""
+    path = os.path.abspath(os.path.join(__file__, "../messages/instance_content.json"))
+    with open(path) as fd:
+        message_dict = json.load(fd)
+
+    # this one is valid
+    instance_message = create_message_from_json(
+        json.dumps(message_dict), factory=InstanceMessage
+    )
+
+    assert isinstance(instance_message.content, InstanceContent)
+    assert (
+        instance_message.content.payment and instance_message.content.payment.is_stream
+    )
+
+    message_dict["content"]["payment"]["type"] = "hold"
+
+    # can't have a terms_and_conditions with hold
+    with pytest.raises(ValueError):
+        instance_message = create_message_from_json(
+            json.dumps(message_dict), factory=InstanceMessage
+        )
+
+    message_dict["content"]["payment"]["type"] = "superfluid"
+
+    # a node_hash is needed for a terms_and_conditions
+    del message_dict["content"]["requirements"]["node"]["node_hash"]
+    with pytest.raises(ValueError):
+        instance_message = create_message_from_json(
+            json.dumps(message_dict), factory=InstanceMessage
+        )

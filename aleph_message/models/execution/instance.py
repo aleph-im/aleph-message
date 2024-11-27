@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field, root_validator
+from pydantic import Field, validator, root_validator
 
 from aleph_message.models.abstract import HashableModel
 
@@ -32,6 +32,23 @@ class InstanceContent(BaseExecutableContent):
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
+
+    @validator("requirements")
+    def terms_and_conditions_only_for_payg_instances(cls, v, values, field, config):
+        if not v.node or not v.node.terms_and_conditions:
+            return v
+
+        if not values["payment"].is_stream:
+            raise ValueError(
+                f"only PAYG/stream instance can have a terms_and_conditions, not '{values['payment'].type}' instances"
+            )
+
+        if not v.node.node_hash:
+            raise ValueError(
+                "an instance with a terms_and_conditions needs a requirements.node.node_hash value"
+            )
+
+        return v
 
     @root_validator()
     def check_gpu_requirement(cls, values):

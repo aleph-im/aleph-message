@@ -1,0 +1,69 @@
+{
+    "sender": "0x3E1aba4ad853Dd7Aa531aB59F10bd9f4d89aebaF",
+    "chain": "ETH",
+    "signature": "0x5ff79fb62190455b485e6a891d7bbee3a992ca8d0361bbd55f12a18176d9f668692601a75c3344cb880a479fc5920efc53036450bce8e891e13b9aa5618b2aba1b",
+    "type": "INSTANCE",
+    "item_content": "{\"address\":\"0x3E1aba4ad853Dd7Aa531aB59F10bd9f4d89aebaF\",\"time\":1732118563.2142403,\"allow_amend\":false,\"metadata\":{\"name\":\"test-payg-base\"},\"authorized_keys\":[\"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQVOxf7uOhIlt7GbPD1XnnSGPvj4t9cdjzB2AYRt3jlPT5w9gcUr2WYj+EPYDXig+imDYELtZNx6Pvg5jruKjFaAtugV3ta0NHPamGNIVPxSNdwx+teLIEs/A9FPT3jeohvU+JpjrKLjBtsfyVJ9iBf/Iswm2rcc/33k4LumwFgkpgNswIc4Da6L1K7EHrlkSbdtdBMdlxLGaU2eFp140JwOTCBBF4rL0JNzPDCzLdkKsj2hQOWg6IIwhQzg3B6o1lY2xoGrVWL4+s+TKSgv1VQY0I1Fmyw+33bWYw/sZlhEpflFYp565Nh2+n3nbYNvmouH4RTLwNUF4z2vvG3J3HVlkd5Q0SCNvPk6FAkAgZ2oXK2P79enlglL+NcFr21QInbacclAtESpPop3dSdLNbR8NvQwh53eELcBPtGFQLRPP9ZfOwtG1hZhVinCeb6fpgcOsBXn0Xo11DQ3XNgfMho632FPqujQtggkyZt/2a53oGEbrrfGgDhiLCGswUM1k= root@rpi\"],\"environment\":{\"internet\":true,\"aleph_api\":true,\"hypervisor\":\"qemu\",\"reproducible\":false,\"shared_cache\":false},\"resources\":{\"vcpus\":1,\"memory\":2048,\"seconds\":30},\"payment\":{\"chain\":\"BASE\",\"receiver\":\"0xFeF2b33478f906eDE5ee96110b2342861cF1569A\",\"type\":\"superfluid\"},\"requirements\":{\"node\":{\"node_hash\":\"2cdb78cf561c6f0f839edb817395d3b5ece20d89125c5afba658f9170d6932c8\"}},\"volumes\":[],\"rootfs\":{\"parent\":{\"ref\":\"b6ff5c3a8205d1ca4c7c3369300eeafff498b558f71b851aa2114afd0a532717\",\"use_latest\":true},\"persistence\":\"host\",\"size_mib\":10240}}",
+    "item_type": "inline",
+    "item_hash": "b28fa9a9ede14c9bbd6fde8959be07cfd25a3358d08e01405301adc5a1a2b2c8",
+    "time": "2024-11-20T16:02:43.214390+00:00",
+    "channel": "ALEPH-CLOUDSOLUTIONS",
+    "content": {
+        "address": "0x3E1aba4ad853Dd7Aa531aB59F10bd9f4d89aebaF",
+        "time": 1732118563.2142403,
+        "allow_amend": false,
+        "metadata": {
+            "name": "test-payg-base"
+        },
+        "authorized_keys": [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQVOxf7uOhIlt7GbPD1XnnSGPvj4t9cdjzB2AYRt3jlPT5w9gcUr2WYj+EPYDXig+imDYELtZNx6Pvg5jruKjFaAtugV3ta0NHPamGNIVPxSNdwx+teLIEs/A9FPT3jeohvU+JpjrKLjBtsfyVJ9iBf/Iswm2rcc/33k4LumwFgkpgNswIc4Da6L1K7EHrlkSbdtdBMdlxLGaU2eFp140JwOTCBBF4rL0JNzPDCzLdkKsj2hQOWg6IIwhQzg3B6o1lY2xoGrVWL4+s+TKSgv1VQY0I1Fmyw+33bWYw/sZlhEpflFYp565Nh2+n3nbYNvmouH4RTLwNUF4z2vvG3J3HVlkd5Q0SCNvPk6FAkAgZ2oXK2P79enlglL+NcFr21QInbacclAtESpPop3dSdLNbR8NvQwh53eELcBPtGFQLRPP9ZfOwtG1hZhVinCeb6fpgcOsBXn0Xo11DQ3XNgfMho632FPqujQtggkyZt/2a53oGEbrrfGgDhiLCGswUM1k= root@rpi"
+        ],
+        "variables": null,
+        "environment": {
+            "internet": true,
+            "aleph_api": true,
+            "hypervisor": "qemu",
+            "trusted_execution": null,
+            "reproducible": false,
+            "shared_cache": false
+        },
+        "resources": {
+            "vcpus": 1,
+            "memory": 2048,
+            "seconds": 30,
+            "published_ports": null
+        },
+        "payment": {
+            "chain": "BASE",
+            "receiver": "0xFeF2b33478f906eDE5ee96110b2342861cF1569A",
+            "type": "superfluid"
+        },
+        "requirements": {
+            "cpu": null,
+            "node": {
+                "owner": null,
+                "address_regex": null,
+                "node_hash": "2cdb78cf561c6f0f839edb817395d3b5ece20d89125c5afba658f9170d6932c8",
+                "terms_and_conditions": "2cdb78cf561c6f0f839edb817395d3b5ece20d89125c5afba658f9170d6932c8"
+            }
+        },
+        "volumes": [],
+        "replaces": null,
+        "rootfs": {
+            "parent": {
+                "ref": "b6ff5c3a8205d1ca4c7c3369300eeafff498b558f71b851aa2114afd0a532717",
+                "use_latest": true
+            },
+            "persistence": "host",
+            "size_mib": 10240
+        }
+    },
+    "confirmed": true,
+    "confirmations": [
+        {
+            "chain": "ETH",
+            "height": 21230293,
+            "hash": "0x8bd25e2384dbb2da8c516880c47148304ed9ee1b7dfff8a327f8ccfa97ea29f4"
+        }
+    ]
+}

@@ -186,6 +186,9 @@ class NodeRequirements(HashableModel):
     node_hash: Optional[ItemHash] = Field(
         default=None, description="Hash of the compute resource node that must be used"
     )
+    terms_and_conditions: Optional[ItemHash] = Field(
+        default=None, description="Terms and conditions of this CRN"
+    )
 
     class Config:
         extra = Extra.forbid
