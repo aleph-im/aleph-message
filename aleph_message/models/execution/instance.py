@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from aleph_message.models import PaymentType
-from pydantic import Field, validator, root_validator
+from pydantic import Field, root_validator
 
 from aleph_message.models.abstract import HashableModel
 
@@ -40,5 +39,5 @@ class InstanceContent(BaseExecutableContent):
     def check_gpu_requirement(self) -> Self:
         if self.requirements and self.requirements.gpus:
             if self.payment and not self.payment.is_stream:
-                raise ValueError('Stream payment type is needed for GPU requirement')
+                raise ValueError("Stream payment type is needed for GPU requirement")
         return self

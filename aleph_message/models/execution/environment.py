@@ -92,18 +92,12 @@ class CpuProperties(HashableModel):
 class GpuProperties(HashableModel):
     """GPU properties."""
 
-    vendor: str = Field(
-        description="GPU vendor name"
-    )
-    device_name: str = Field(
-        description="GPU vendor card name"
-    )
+    vendor: str = Field(description="GPU vendor name")
+    device_name: str = Field(description="GPU vendor card name")
     device_class: Literal["0300", "0302"] = Field(
         description="GPU device class. Look at https://admin.pci-ids.ucw.cz/read/PD/03"
     )
-    device_id: str = Field(
-        description="GPU vendor & device ids"
-    )
+    device_id: str = Field(description="GPU vendor & device ids")
 
     class Config:
         extra = Extra.forbid
