@@ -17,6 +17,7 @@ from aleph_message.models import (
     ItemType,
     MessagesResponse,
     MessageType,
+    PaymentType,
     PostContent,
     PostMessage,
     ProgramMessage,
@@ -25,7 +26,6 @@ from aleph_message.models import (
     create_message_from_json,
     create_new_message,
     parse_message,
-    PaymentType,
 )
 from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
@@ -202,14 +202,23 @@ def test_validation_on_gpu_payment_options():
     message_dict = json.loads(path.read_text())
     # Patch the gpu field with some info
     message_dict["content"]["payment"]["type"] = "hold"
+    message_dict["content"]["payment"]["receiver"] = None
+    message = create_new_message(message_dict, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.hold
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+
+    # Require node_hash field for GPU support
+    message_dict["content"]["requirements"]["node"] = None
     try:
         _ = create_new_message(message_dict, factory=InstanceMessage)
         raise AssertionError("An exception should have been raised before this point.")
     except ValidationError as e:
         assert e.errors()[0]["loc"] == ("content", "__root__")
-        assert (
-            e.errors()[0]["msg"] == "Stream payment type is needed for GPU requirement"
-        )
+        assert e.errors()[0]["msg"] == "Node hash assignment is needed for GPU support"
 
 
 def test_validation_on_gpu_hypervisor_options():

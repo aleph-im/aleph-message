@@ -5,7 +5,7 @@ from pydantic import Field, root_validator
 from aleph_message.models.abstract import HashableModel
 
 from .abstract import BaseExecutableContent
-from .environment import InstanceEnvironment, HypervisorType
+from .environment import HypervisorType, InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
 
 
@@ -36,8 +36,11 @@ class InstanceContent(BaseExecutableContent):
     @root_validator()
     def check_gpu_requirement(cls, values):
         if values.get("requirements") and values.get("requirements").gpu:
-            if values.get("payment") and not values.get("payment").is_stream:
-                raise ValueError("Stream payment type is needed for GPU requirement")
+            if (
+                not values.get("requirements").node
+                or not values.get("requirements").node.node_hash
+            ):
+                raise ValueError("Node hash assignment is needed for GPU support")
 
             if (
                 values.get("environment")
