@@ -17,6 +17,7 @@ from aleph_message.models import (
     ItemType,
     MessagesResponse,
     MessageType,
+    PaymentType,
     PostContent,
     PostMessage,
     ProgramMessage,
@@ -26,7 +27,7 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
-from aleph_message.models.execution.environment import AMDSEVPolicy
+from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
@@ -172,7 +173,7 @@ def test_validation_on_confidential_options():
     path = Path(__file__).parent / "messages/instance_confidential_machine.json"
     message_dict = json.loads(path.read_text())
     # Patch the hypervisor to be something other than QEmu
-    message_dict["content"]["environment"]["hypervisor"] = "firecracker"
+    message_dict["content"]["environment"]["hypervisor"] = HypervisorType.firecracker
     try:
         _ = create_new_message(message_dict, factory=InstanceMessage)
         raise AssertionError("An exception should have been raised before this point.")
@@ -181,6 +182,58 @@ def test_validation_on_confidential_options():
         assert (
             e.errors()[0]["msg"]
             == "Trusted Execution Environment is only supported for QEmu"
+        )
+
+
+def test_instance_message_machine_with_gpu_options():
+    path = Path(__file__).parent / "messages/instance_gpu_machine.json"
+    message = create_message_from_file(path, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.superfluid
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+
+
+def test_validation_on_gpu_payment_options():
+    """Ensure that a gpu option is only allowed for stream payments."""
+    path = Path(__file__).parent / "messages/instance_gpu_machine.json"
+    message_dict = json.loads(path.read_text())
+    # Patch the gpu field with some info
+    message_dict["content"]["payment"]["type"] = "hold"
+    message_dict["content"]["payment"]["receiver"] = None
+    message = create_new_message(message_dict, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.hold
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+
+    # Require node_hash field for GPU support
+    message_dict["content"]["requirements"]["node"] = None
+    try:
+        _ = create_new_message(message_dict, factory=InstanceMessage)
+        raise AssertionError("An exception should have been raised before this point.")
+    except ValidationError as e:
+        assert e.errors()[0]["loc"] == ("content", "__root__")
+        assert e.errors()[0]["msg"] == "Node hash assignment is needed for GPU support"
+
+
+def test_validation_on_gpu_hypervisor_options():
+    """Ensure that a gpu option is only allowed for Qemu hypervisor."""
+    path = Path(__file__).parent / "messages/instance_gpu_machine.json"
+    message_dict = json.loads(path.read_text())
+    # Patch the gpu field with some info
+    message_dict["content"]["environment"]["hypervisor"] = HypervisorType.firecracker
+    try:
+        _ = create_new_message(message_dict, factory=InstanceMessage)
+        raise AssertionError("An exception should have been raised before this point.")
+    except ValidationError as e:
+        assert e.errors()[0]["loc"] == ("content", "__root__")
+        assert (
+            e.errors()[0]["msg"] == "GPU option is only supported for QEmu hypervisor"
         )
 
 
