@@ -89,12 +89,19 @@ class CpuProperties(HashableModel):
         extra = Extra.forbid
 
 
+class GpuDeviceClass(str, Enum):
+    """GPU device class. Look at https://admin.pci-ids.ucw.cz/read/PD/03"""
+
+    VGA_COMPATIBLE_CONTROLLER = "0300"
+    _3D_CONTROLLER = "0302"
+
+
 class GpuProperties(HashableModel):
     """GPU properties."""
 
     vendor: str = Field(description="GPU vendor name")
     device_name: str = Field(description="GPU vendor card name")
-    device_class: Literal["0300", "0302"] = Field(
+    device_class: GpuDeviceClass = Field(
         description="GPU device class. Look at https://admin.pci-ids.ucw.cz/read/PD/03"
     )
     device_id: str = Field(description="GPU vendor & device ids")
