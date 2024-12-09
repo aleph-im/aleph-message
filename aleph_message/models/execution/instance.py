@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, root_validator
 
 from aleph_message.models.abstract import HashableModel
 
 from .abstract import BaseExecutableContent
-from .environment import InstanceEnvironment
+from .environment import HypervisorType, InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
 
 
@@ -32,3 +32,19 @@ class InstanceContent(BaseExecutableContent):
     rootfs: RootfsVolume = Field(
         description="Root filesystem of the system, will be booted by the kernel"
     )
+
+    @root_validator()
+    def check_gpu_requirement(cls, values):
+        if values.get("requirements") and values.get("requirements").gpu:
+            if (
+                not values.get("requirements").node
+                or not values.get("requirements").node.node_hash
+            ):
+                raise ValueError("Node hash assignment is needed for GPU support")
+
+            if (
+                values.get("environment")
+                and values.get("environment").hypervisor != HypervisorType.qemu
+            ):
+                raise ValueError("GPU option is only supported for QEmu hypervisor")
+        return values
