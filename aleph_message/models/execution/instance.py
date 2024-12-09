@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field, validator, root_validator
+from pydantic import Field, root_validator
 
 from aleph_message.models.abstract import HashableModel
 
@@ -33,35 +33,36 @@ class InstanceContent(BaseExecutableContent):
         description="Root filesystem of the system, will be booted by the kernel"
     )
 
-    @validator("requirements")
-    def terms_and_conditions_only_for_payg_instances(cls, v, values, field, config):
-        if not v.node or not v.node.terms_and_conditions:
-            return v
-
-        if not values["payment"].is_stream:
-            raise ValueError(
-                f"only PAYG/stream instance can have a terms_and_conditions, not '{values['payment'].type}' instances"
-            )
-
-        if not v.node.node_hash:
-            raise ValueError(
-                "an instance with a terms_and_conditions needs a requirements.node.node_hash value"
-            )
-
-        return v
-
     @root_validator()
-    def check_gpu_requirement(cls, values):
-        if values.get("requirements") and values.get("requirements").gpu:
-            if (
-                not values.get("requirements").node
-                or not values.get("requirements").node.node_hash
-            ):
-                raise ValueError("Node hash assignment is needed for GPU support")
+    def check_requirements(cls, values):
+        if values.get("requirements"):
+            # GPU filter only supported for QEmu instances with node_hash assigned
+            if values.get("requirements").gpu:
+                if (
+                    not values.get("requirements").node
+                    or not values.get("requirements").node.node_hash
+                ):
+                    raise ValueError("Node hash assignment is needed for GPU support")
 
+                if (
+                    values.get("environment")
+                    and values.get("environment").hypervisor != HypervisorType.qemu
+                ):
+                    raise ValueError("GPU option is only supported for QEmu hypervisor")
+
+            # Terms and conditions filter only supported for stream payments with node_hash assigned
             if (
-                values.get("environment")
-                and values.get("environment").hypervisor != HypervisorType.qemu
+                values.get("requirements").node
+                and values.get("requirements").node.terms_and_conditions
             ):
-                raise ValueError("GPU option is only supported for QEmu hypervisor")
+                if not values.get("requirements").node.node_hash:
+                    raise ValueError(
+                        "Terms_and_conditions field needs a requirements.node.node_hash value"
+                    )
+
+                if not values.get("payment").is_stream:
+                    raise ValueError(
+                        "Only PAYG/stream instances can have a terms_and_conditions"
+                    )
+
         return values

@@ -13,8 +13,8 @@ from aleph_message.exceptions import UnknownHashError
 from aleph_message.models import (
     AggregateMessage,
     ForgetMessage,
-    InstanceMessage,
     InstanceContent,
+    InstanceMessage,
     ItemType,
     MessagesResponse,
     MessageType,
