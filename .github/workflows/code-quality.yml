@@ -1,4 +1,6 @@
+---
 name: Tests
+
 
 on:
   push:
@@ -7,6 +9,7 @@ on:
   pull_request:
     branches:
       - "*"
+
 
 jobs:
   code-quality:
