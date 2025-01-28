@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Extra
+from typing import List, Optional
+
+from pydantic import BaseModel, Extra, Field
 
 
 def hashable(obj):
@@ -23,6 +25,9 @@ class BaseContent(BaseModel):
 
     address: str
     time: float
+    tags: Optional[List[str]] = Field(
+        default=None, description="Tags associated with the message"
+    )
 
     class Config:
         extra = Extra.forbid
