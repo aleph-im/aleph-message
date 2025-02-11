@@ -50,7 +50,7 @@ class InstanceContent(BaseExecutableContent):
                 ):
                     raise ValueError("GPU option is only supported for QEmu hypervisor")
 
-            # Terms and conditions filter only supported for stream payments with node_hash assigned
+            # Terms and conditions filter only supported for PAYG/coco instances with node_hash assigned
             if (
                 values.get("requirements").node
                 and values.get("requirements").node.terms_and_conditions
@@ -60,9 +60,12 @@ class InstanceContent(BaseExecutableContent):
                         "Terms_and_conditions field needs a requirements.node.node_hash value"
                     )
 
-                if not values.get("payment").is_stream:
+                if (
+                    not values.get("payment").is_stream
+                    and not values.get("environment").trusted_execution
+                ):
                     raise ValueError(
-                        "Only PAYG/stream instances can have a terms_and_conditions"
+                        "Only PAYG/coco instances can have a terms_and_conditions"
                     )
 
         return values
