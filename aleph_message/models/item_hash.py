@@ -1,8 +1,7 @@
 from enum import Enum
 from functools import lru_cache
+from typing import Any
 
-from pydantic import GetCoreSchemaHandler
-from pydantic.functional_serializers import model_serializer
 from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
@@ -36,10 +35,6 @@ class ItemType(str, Enum):
     def is_ipfs(cls, item_hash: str):
         return cls.from_hash(item_hash) == cls.ipfs
 
-    @model_serializer
-    def __str__(self):
-        return self.value
-
 
 class ItemHash(str):
     item_type: ItemType
@@ -54,21 +49,23 @@ class ItemHash(str):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source, handler: GetCoreSchemaHandler
+        cls, source: type[Any], handler: core_schema.ValidatorFunctionWrapHandler
     ) -> core_schema.CoreSchema:
-        # This function validates the input after the initial type validation (as a string).
-        # The returned value from this function will be used as the final validated value.
-
-        # Return a string schema and add a post-validation function to convert to ItemHash
+        """Pydantic v2 - Validation Schema"""
         return core_schema.no_info_after_validator_function(
             cls.validate, core_schema.str_schema()
         )
 
     @classmethod
-    def validate(cls, v):
+    def __get_pydantic_json_schema__(cls, schema) -> dict[str, Any]:
+        """Pydantic v2 - JSON Schema Generation"""
+        return {"type": "string"}
+
+    @classmethod
+    def validate(cls, v: Any) -> "ItemHash":
         if not isinstance(v, str):
             raise TypeError("Item hash must be a string")
         return cls(v)  # Convert to ItemHash
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ItemHash value={super().__repr__()} item_type={self.item_type!r}>"
