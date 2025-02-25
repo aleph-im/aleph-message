@@ -103,8 +103,7 @@ class GpuProperties(HashableModel):
     )
     device_id: str = Field(description="GPU vendor & device ids")
 
-    class Config:
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class HypervisorType(str, Enum):
