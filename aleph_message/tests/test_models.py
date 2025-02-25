@@ -228,8 +228,12 @@ def test_validation_on_gpu_payment_options():
         _ = create_new_message(message_dict, factory=InstanceMessage)
         raise AssertionError("An exception should have been raised before this point.")
     except ValidationError as e:
-        assert e.errors()[0]["loc"] == ("content", "__root__")
-        assert e.errors()[0]["msg"] == "Node hash assignment is needed for GPU support"
+        assert e.errors()[0]["loc"] in [("content",), ("content", "__root__")]
+
+        error_msg = e.errors()[0]["msg"]
+        assert (
+            "Node hash assignment is needed for GPU support" in error_msg
+        )  # Ignore "Value error, ..."
 
 
 def test_validation_on_gpu_hypervisor_options():
@@ -242,10 +246,12 @@ def test_validation_on_gpu_hypervisor_options():
         _ = create_new_message(message_dict, factory=InstanceMessage)
         raise AssertionError("An exception should have been raised before this point.")
     except ValidationError as e:
-        assert e.errors()[0]["loc"] == ("content", "__root__")
+        assert e.errors()[0]["loc"] in [("content",), ("content", "__root__")]
+
+        error_msg = e.errors()[0]["msg"]
         assert (
-            e.errors()[0]["msg"] == "GPU option is only supported for QEmu hypervisor"
-        )
+            "GPU option is only supported for QEmu hypervisor" in error_msg
+        )  # Ignore "Value error, ..."
 
 
 def test_message_machine_port_mapping():
