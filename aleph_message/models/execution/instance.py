@@ -35,6 +35,9 @@ class InstanceContent(BaseExecutableContent):
 
     metadata: Optional[dict] = None
     payment: Optional[Payment] = None
+    authorized_keys: Optional[List[str]] = Field(
+        default=None, description="List of authorized SSH keys"
+    )
     environment: InstanceEnvironment = Field(
         description="Properties of the instance execution environment"
     )
