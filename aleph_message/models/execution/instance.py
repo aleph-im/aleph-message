@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from aleph_message.models.abstract import HashableModel
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
-from .environment import HypervisorType, InstanceEnvironment
-from .volume import ParentVolume, VolumePersistence
 from .base import Payment
-from .environment import InstanceEnvironment
+from .environment import HypervisorType, InstanceEnvironment
 from .volume import ParentVolume, VolumePersistence
 
 
@@ -44,36 +42,36 @@ class InstanceContent(BaseExecutableContent):
         description="Root filesystem of the system, will be booted by the kernel"
     )
 
-    @root_validator()
+    @model_validator(mode="after")
     def check_requirements(cls, values):
-        if values.get("requirements"):
+        if values.requirements:
             # GPU filter only supported for QEmu instances with node_hash assigned
-            if values.get("requirements").gpu:
+            if values.requirements.gpu:
                 if (
-                    not values.get("requirements").node
-                    or not values.get("requirements").node.node_hash
+                    not values.requirements.node
+                    or not values.requirements.node.node_hash
                 ):
                     raise ValueError("Node hash assignment is needed for GPU support")
 
                 if (
-                    values.get("environment")
-                    and values.get("environment").hypervisor != HypervisorType.qemu
+                    values.environment
+                    and values.environment.hypervisor != HypervisorType.qemu
                 ):
                     raise ValueError("GPU option is only supported for QEmu hypervisor")
 
             # Terms and conditions filter only supported for PAYG/coco instances with node_hash assigned
             if (
-                values.get("requirements").node
-                and values.get("requirements").node.terms_and_conditions
+                values.requirements.node
+                and values.requirements.node.terms_and_conditions
             ):
-                if not values.get("requirements").node.node_hash:
+                if not values.requirements.node.node_hash:
                     raise ValueError(
                         "Terms_and_conditions field needs a requirements.node.node_hash value"
                     )
 
                 if (
-                    not values.get("payment").is_stream
-                    and not values.get("environment").trusted_execution
+                    not values.payment.is_stream
+                    and not values.environment.trusted_execution
                 ):
                     raise ValueError(
                         "Only PAYG/coco instances can have a terms_and_conditions"
