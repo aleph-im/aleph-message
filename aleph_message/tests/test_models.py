@@ -401,7 +401,7 @@ def test_create_new_message():
     assert create_message_from_json(json.dumps(message_dict))
 
 
-def test_volume_size_constraints():
+def test_volume_size_constraints() -> None:
     """Test size constraints for volumes"""
 
     _ = EphemeralVolume(size_mib=1)
@@ -437,7 +437,7 @@ def test_volume_size_constraints():
         _ = create_test_rootfs(size_mib=size_mib_rootfs + 1)
 
 
-def test_program_message_content_and_item_content_differ():
+def test_program_message_content_and_item_content_differ() -> None:
     # Test that a ValidationError is raised if the content and item_content differ
 
     # Get a program message as JSON-compatible dict
