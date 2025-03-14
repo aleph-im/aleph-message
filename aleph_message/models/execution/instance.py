@@ -10,8 +10,7 @@ from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
 from .base import Payment
 from .environment import HypervisorType, InstanceEnvironment
-from .volume import ParentVolume, VolumePersistence, PersistentVolume
-
+from .volume import ParentVolume, VolumePersistence
 
 
 class RootfsVolume(HashableModel):
