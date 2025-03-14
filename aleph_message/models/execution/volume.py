@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Annotated, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
@@ -53,18 +53,12 @@ class VolumePersistence(str, Enum):
     store = "store"
 
 
-class PersistentVolumeSizeMib(BaseModel):
-    size_mib: Annotated[
-        int, Field(gt=0, le=gigabyte_to_mebibyte(2048), strict=True)
-    ]  # Limit to 2048 GiB
-
-
 class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
     persistence: Optional[VolumePersistence] = None
     name: Optional[str] = None
     size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 100GiB
+        gt=0, le=gigabyte_to_mebibyte(Gigabytes(2048)), strict=True  # Limit to 2048GiB
     )
 
     def is_read_only(self):

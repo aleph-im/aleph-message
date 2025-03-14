@@ -10,7 +10,8 @@ from ...utils import Gigabytes, gigabyte_to_mebibyte
 from .abstract import BaseExecutableContent
 from .base import Payment
 from .environment import HypervisorType, InstanceEnvironment
-from .volume import ParentVolume, VolumePersistence
+from .volume import ParentVolume, VolumePersistence, PersistentVolume
+
 
 
 class RootfsVolume(HashableModel):
@@ -25,7 +26,7 @@ class RootfsVolume(HashableModel):
     persistence: VolumePersistence
     # Use the same size constraint as persistent volumes for now
     size_mib: int = Field(
-        gt=-1, le=gigabyte_to_mebibyte(Gigabytes(100)), strict=True  # Limit to 1GiB
+        gt=0, le=gigabyte_to_mebibyte(Gigabytes(2048)), strict=True  # Limit to 100GiB
     )
     forgotten_by: Optional[List[str]] = None
 
