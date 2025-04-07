@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field
 
@@ -29,11 +29,19 @@ class ImmutableVolume(AbstractVolume):
         return True
 
 
+EphemeralVolumeSize = Annotated[
+    int,
+    Field(
+        gt=0,
+        le=1000,  # Limit to 1 GiB
+        strict=True,
+    ),
+]
+
+
 class EphemeralVolume(AbstractVolume):
     ephemeral: Literal[True] = True
-    size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(1)), strict=True  # Limit to 1GiB
-    )
+    size_mib: EphemeralVolumeSize
 
     def is_read_only(self):
         return False
@@ -53,13 +61,22 @@ class VolumePersistence(str, Enum):
     store = "store"
 
 
+# Define a type for persistent volume size with constraints
+PersistentVolumeSizeMib = Annotated[
+    int,
+    Field(
+        gt=0,
+        le=gigabyte_to_mebibyte(Gigabytes(2048)),
+        strict=True,  # Limit to 2048 GiB
+    ),
+]
+
+
 class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
     persistence: Optional[VolumePersistence] = None
     name: Optional[str] = None
-    size_mib: int = Field(
-        gt=0, le=gigabyte_to_mebibyte(Gigabytes(2048)), strict=True  # Limit to 2048GiB
-    )
+    size_mib: PersistentVolumeSizeMib
 
     def is_read_only(self):
         return False

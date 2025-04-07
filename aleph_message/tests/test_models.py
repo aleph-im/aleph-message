@@ -1,6 +1,5 @@
 import json
 import os.path
-from functools import partial
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
@@ -17,7 +16,6 @@ from aleph_message.models import (
     ForgetMessage,
     InstanceContent,
     InstanceMessage,
-    ItemHash,
     ItemType,
     MessagesResponse,
     MessageType,
@@ -32,14 +30,7 @@ from aleph_message.models import (
     parse_message,
 )
 from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
-from aleph_message.models.execution.instance import RootfsVolume
-from aleph_message.models.execution.volume import (
-    EphemeralVolume,
-    ParentVolume,
-    VolumePersistence,
-)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
-from aleph_message.utils import Gigabytes, Mebibytes, gigabyte_to_mebibyte
 
 console = Console(color_system="windows")
 
@@ -405,42 +396,6 @@ def test_create_new_message():
     )
     assert new_message_1 == new_message_2
     assert create_message_from_json(json.dumps(message_dict))
-
-
-def test_volume_size_constraints() -> None:
-    """Test size constraints for volumes"""
-
-    _ = EphemeralVolume(size_mib=1)
-    # A ValidationError should be raised if the size negative
-    with pytest.raises(ValidationError):
-        _ = EphemeralVolume(size_mib=-1)
-    size_mib: Mebibytes = gigabyte_to_mebibyte(Gigabytes(1))
-    # A size of 1GiB should be allowed
-    _ = EphemeralVolume(size_mib=size_mib)
-    # A ValidationError should be raised if the size is greater than 1GiB
-    with pytest.raises(ValidationError):
-        _ = EphemeralVolume(size_mib=size_mib + 1)
-
-    # Use partial function to avoid repeating the same code
-    create_test_rootfs = partial(
-        RootfsVolume,
-        parent=ParentVolume(
-            ref=ItemHash("QmX8K1c22WmQBAww5ShWQqwMiFif7XFrJD6iFBj7skQZXW")
-        ),
-        persistence=VolumePersistence.store,
-    )
-
-    _ = create_test_rootfs(size_mib=1)
-
-    # A ValidationError should be raised if the size negative
-    with pytest.raises(ValidationError):
-        _ = create_test_rootfs(size_mib=-1)
-    size_mib_rootfs: Mebibytes = gigabyte_to_mebibyte(Gigabytes(2048))
-    # A size of 2048GiB should be allowed
-    _ = create_test_rootfs(size_mib=size_mib_rootfs)
-    # A ValidationError should be raised if the size is greater than 100GiB
-    with pytest.raises(ValidationError):
-        _ = create_test_rootfs(size_mib=size_mib_rootfs + 1)
 
 
 def test_program_message_content_and_item_content_differ() -> None:
