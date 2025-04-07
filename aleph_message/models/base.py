@@ -29,6 +29,7 @@ class Chain(str, Enum):
     TEZOS = "TEZOS"
     WORLDCHAIN = "WLD"
     ZORA = "ZORA"
+    SONIC = "SONIC"
 
 
 class HashType(str, Enum):
