@@ -17,7 +17,6 @@ from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
 from .item_hash import ItemHash, ItemType
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
