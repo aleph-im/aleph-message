@@ -1,5 +1,8 @@
 from enum import Enum
 from functools import lru_cache
+from typing import Any
+
+from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
 
@@ -45,18 +48,24 @@ class ItemHash(str):
         return obj
 
     @classmethod
-    def __get_validators__(cls):
-        # one or more validators may be yielded which will be called in the
-        # order to validate the input, each validator will receive as an input
-        # the value returned from the previous validator
-        yield cls.validate
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: core_schema.ValidatorFunctionWrapHandler
+    ) -> core_schema.CoreSchema:
+        """Pydantic v2 - Validation Schema"""
+        return core_schema.no_info_after_validator_function(
+            cls.validate, core_schema.str_schema()
+        )
 
     @classmethod
-    def validate(cls, v):
+    def __get_pydantic_json_schema__(cls, schema) -> dict[str, Any]:
+        """Pydantic v2 - JSON Schema Generation"""
+        return {"type": "string"}
+
+    @classmethod
+    def validate(cls, v: Any) -> "ItemHash":
         if not isinstance(v, str):
             raise TypeError("Item hash must be a string")
+        return cls(v)  # Convert to ItemHash
 
-        return cls(v)
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ItemHash value={super().__repr__()} item_type={self.item_type!r}>"

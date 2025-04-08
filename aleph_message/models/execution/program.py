@@ -7,7 +7,7 @@ from pydantic import Field
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
-from .base import Encoding, Interface, MachineType
+from .base import Encoding, Interface, MachineType, Payment
 from .environment import FunctionTriggers
 
 
@@ -43,8 +43,8 @@ class DataContent(HashableModel):
 
     encoding: Encoding
     mount: str
-    ref: ItemHash
-    use_latest: bool = False
+    ref: Optional[ItemHash] = None
+    use_latest: Optional[bool] = False
 
 
 class Export(HashableModel):
@@ -69,3 +69,7 @@ class ProgramContent(BaseExecutableContent):
         default=None, description="Data to export after computation"
     )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
+
+    metadata: Optional[dict] = None
+    authorized_keys: Optional[List[str]] = None
+    payment: Optional[Payment] = None
