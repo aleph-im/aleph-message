@@ -13,6 +13,7 @@ class Chain(str, Enum):
     CSDK = "CSDK"
     CYBER = "CYBER"
     DOT = "DOT"
+    ECLIPSE = "ES"
     ETH = "ETH"
     FRAXTAL = "FRAX"
     INK = "INK"
@@ -26,10 +27,10 @@ class Chain(str, Enum):
     OPTIMISM = "OP"
     POL = "POL"
     SOL = "SOL"
+    SONIC = "SONIC"
     TEZOS = "TEZOS"
     WORLDCHAIN = "WLD"
     ZORA = "ZORA"
-    SONIC = "SONIC"
 
 
 class HashType(str, Enum):
