@@ -29,6 +29,7 @@ class Chain(str, Enum):
     SOL = "SOL"
     SONIC = "SONIC"
     TEZOS = "TEZOS"
+    UNICHAIN = "UNICHAIN"
     WORLDCHAIN = "WLD"
     ZORA = "ZORA"
 
