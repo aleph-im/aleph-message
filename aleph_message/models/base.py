@@ -5,6 +5,7 @@ class Chain(str, Enum):
     """Supported chains"""
 
     ARBITRUM = "ARB"
+    AURORA = "AURORA"
     AVAX = "AVAX"
     BASE = "BASE"
     BLAST = "BLAST"
@@ -30,6 +31,7 @@ class Chain(str, Enum):
     OPTIMISM = "OP"
     POL = "POL"
     SOL = "SOL"
+    SOMNIA = "STT"
     SONIC = "SONIC"
     TEZOS = "TEZOS"
     UNICHAIN = "UNICHAIN"
