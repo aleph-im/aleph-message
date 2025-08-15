@@ -28,12 +28,13 @@ class PaymentType(str, Enum):
 
     hold = "hold"
     superfluid = "superfluid"
+    credit = "credit"
 
 
 class Payment(HashableModel):
     """Payment information for a program execution."""
 
-    chain: Chain
+    chain: Optional[Chain] = None
     """Which chain to check for funds"""
     receiver: Optional[str] = None
     """Optional alternative address to send tokens to"""
@@ -42,7 +43,11 @@ class Payment(HashableModel):
 
     @property
     def is_stream(self):
-        return self.type != PaymentType.hold
+        return self.type == PaymentType.superfluid
+
+    @property
+    def is_credit(self):
+        return self.type == PaymentType.credit
 
 
 class Interface(str, Enum):
