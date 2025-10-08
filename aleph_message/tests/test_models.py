@@ -245,6 +245,71 @@ def test_validation_on_gpu_hypervisor_options():
         )  # Ignore "Value error, ..."
 
 
+def test_validation_on_payg_payment_options():
+    """Ensure that a node_hash option is required for stream payments."""
+    path = Path(__file__).parent / "messages/instance_gpu_machine.json"
+    message_dict = json.loads(path.read_text())
+    message_dict["content"]["requirements"]["gpu"] = None
+    message = create_new_message(message_dict, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.superfluid
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+
+    message_dict["content"]["requirements"]["node"] = None
+    try:
+        _ = create_new_message(message_dict, factory=InstanceMessage)
+        raise AssertionError("An exception should have been raised before this point.")
+    except ValidationError as e:
+        assert e.errors()[0]["loc"] in [("content",), ("content", "__root__")]
+
+        error_msg = e.errors()[0]["msg"]
+        assert (
+            "Node hash assignment is needed for PAYG or Credit payments" in error_msg
+        )  # Ignore "Value error, ..."
+
+
+def test_validation_on_credits_payment_options():
+    """Ensure that a node_hash option is required for credit payments."""
+    path = Path(__file__).parent / "messages/instance_gpu_machine.json"
+    message_dict = json.loads(path.read_text())
+    # Patch the gpu field with some info
+    message_dict["content"]["payment"]["type"] = "credit"
+    message_dict["content"]["payment"]["receiver"] = None
+    message = create_new_message(message_dict, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.credit
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+
+    # Remove gpu field with some info
+    message_dict["content"]["requirements"]["gpu"] = None
+    message = create_new_message(message_dict, factory=InstanceMessage)
+
+    assert isinstance(message, InstanceMessage)
+    assert hash(message.content)
+    assert message.content.payment
+    assert message.content.payment.type == PaymentType.credit
+    assert message.content.environment.hypervisor == HypervisorType.qemu
+    assert message.content.requirements.gpu is None
+
+    message_dict["content"]["requirements"]["node"] = None
+    try:
+        _ = create_new_message(message_dict, factory=InstanceMessage)
+        raise AssertionError("An exception should have been raised before this point.")
+    except ValidationError as e:
+        assert e.errors()[0]["loc"] in [("content",), ("content", "__root__")]
+
+        error_msg = e.errors()[0]["msg"]
+        assert (
+            "Node hash assignment is needed for PAYG or Credit payments" in error_msg
+        )  # Ignore "Value error, ..."
+
+
 def test_message_machine_port_mapping():
     message_dict = {
         "chain": "ETH",
