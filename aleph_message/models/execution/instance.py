@@ -44,34 +44,42 @@ class InstanceContent(BaseExecutableContent):
 
     @model_validator(mode="after")
     def check_requirements(cls, values):
-        if values.requirements:
+        if getattr(values, "requirements", None):
+            if (
+                getattr(values.payment, "is_stream", None)
+                or getattr(values.payment, "is_credit", None)
+            ) and (
+                not getattr(values.requirements, "node", None)
+                or not getattr(values.requirements.node, "node_hash", None)
+            ):
+                raise ValueError(
+                    "Node hash assignment is needed for PAYG or Credit payments"
+                )
             # GPU filter only supported for QEmu instances with node_hash assigned
-            if values.requirements.gpu:
-                if (
-                    not values.requirements.node
-                    or not values.requirements.node.node_hash
+            if getattr(values.requirements, "gpu", None):
+                if not getattr(values.requirements, "node", None) or not getattr(
+                    values.requirements.node, "node_hash", None
                 ):
                     raise ValueError("Node hash assignment is needed for GPU support")
 
                 if (
-                    values.environment
-                    and values.environment.hypervisor != HypervisorType.qemu
+                    getattr(values, "environment", None)
+                    and getattr(values.environment, "hypervisor", None)
+                    != HypervisorType.qemu
                 ):
                     raise ValueError("GPU option is only supported for QEmu hypervisor")
 
             # Terms and conditions filter only supported for PAYG/coco instances with node_hash assigned
-            if (
-                values.requirements.node
-                and values.requirements.node.terms_and_conditions
+            if getattr(values.requirements, "node", None) and getattr(
+                values.requirements.node, "terms_and_conditions", None
             ):
-                if not values.requirements.node.node_hash:
+                if not getattr(values.requirements.node, "node_hash", None):
                     raise ValueError(
                         "Terms_and_conditions field needs a requirements.node.node_hash value"
                     )
 
-                if (
-                    not values.payment.is_stream
-                    and not values.environment.trusted_execution
+                if not getattr(values.payment, "is_stream", None) and not getattr(
+                    values.environment, "trusted_execution", None
                 ):
                     raise ValueError(
                         "Only PAYG/coco instances can have a terms_and_conditions"
