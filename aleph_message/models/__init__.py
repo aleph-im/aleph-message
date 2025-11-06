@@ -295,7 +295,6 @@ class StoreMessage(BaseMessage):
     type: Literal[MessageType.store]
     content: StoreContent
     forgotten_by: Optional[list] = None
-    metadata: Optional[Dict[str, Any]] = None
 
 
 class ForgetMessage(BaseMessage):
