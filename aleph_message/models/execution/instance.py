@@ -71,10 +71,12 @@ class InstanceContent(BaseExecutableContent):
                     )
 
                 if (
-                    not self.payment or not self.payment.is_stream
+                    not self.payment
+                    or not self.payment.is_stream
+                    or not self.payment.is_credit
                 ) and not self.environment.trusted_execution:
                     raise ValueError(
-                        "Only PAYG/coco instances can have a terms_and_conditions"
+                        "Only PAYG/CoCo/Credit instances can have a terms_and_conditions"
                     )
 
         return self
