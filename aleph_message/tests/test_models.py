@@ -524,6 +524,17 @@ def test_terms_and_conditions_only_for_payg_instances():
         instance_message.content.payment and instance_message.content.payment.is_stream
     )
 
+    # this other one as well
+    message_dict["content"]["payment"]["type"] = "credit"
+    instance_message = create_message_from_json(
+        json.dumps(message_dict), factory=InstanceMessage
+    )
+
+    assert isinstance(instance_message.content, InstanceContent)
+    assert (
+        instance_message.content.payment and instance_message.content.payment.is_credit
+    )
+
     message_dict["content"]["payment"]["type"] = "hold"
 
     # can't have a terms_and_conditions with hold
