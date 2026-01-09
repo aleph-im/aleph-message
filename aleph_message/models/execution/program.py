@@ -43,9 +43,11 @@ class DataContent(HashableModel):
 
     encoding: Encoding
     mount: str
-    ref: Optional[ItemHash] = None
+    ref: ItemHash
     use_latest: Optional[bool] = False
 
+    def use_latest_image(self) -> bool:
+        return self.use_latest or False
 
 class Export(HashableModel):
     """Data to export after computations."""

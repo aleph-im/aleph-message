@@ -22,7 +22,7 @@ class AbstractVolume(HashableModel, ABC):
 
 
 class ImmutableVolume(AbstractVolume):
-    ref: Optional[ItemHash] = None
+    ref: ItemHash
     use_latest: bool = True
 
     def is_read_only(self):
