@@ -199,4 +199,8 @@ class HostRequirements(HashableModel):
         default=None, description="GPUs needed to pass-through from the host"
     )
 
+    @property
+    def gpu_requirements(self):
+        return self.gpu or []
+
     model_config = ConfigDict(extra="allow")

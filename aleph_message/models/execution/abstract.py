@@ -47,7 +47,7 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     @property
     def gpu_requirements(self) -> Sequence[GpuProperties]:
         """Returns the GPU requirements of the VM, if any."""
-        return self.requirements.gpu if self.requirements else []
+        return self.requirements.gpu_requirements if self.requirements else []
 
     @property
     def requires_gpu(self) -> bool:
@@ -57,4 +57,7 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     @property
     def is_confidential(self) -> bool:
         """Whether the VM is configured as a confidential VM."""
-        return self.environment.trusted_execution is not None
+        return (
+            isinstance(self.environment, InstanceEnvironment)
+            and self.environment.trusted_execution is not None
+        )
