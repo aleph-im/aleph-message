@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, List, Optional, Union, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from pydantic import Field
 
@@ -9,9 +9,10 @@ from ..abstract import BaseContent, HashableModel
 from .base import Payment
 from .environment import (
     FunctionEnvironment,
+    GpuProperties,
     HostRequirements,
     InstanceEnvironment,
-    MachineResources, GpuProperties,
+    MachineResources,
 )
 from .volume import MachineVolume
 
@@ -57,4 +58,3 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     def is_confidential(self) -> bool:
         """Whether the VM is configured as a confidential VM."""
         return self.environment.trusted_execution is not None
-
