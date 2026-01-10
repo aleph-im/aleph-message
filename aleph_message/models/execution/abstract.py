@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from pydantic import Field
 
@@ -9,6 +9,7 @@ from ..abstract import BaseContent, HashableModel
 from .base import Payment
 from .environment import (
     FunctionEnvironment,
+    GpuProperties,
     HostRequirements,
     InstanceEnvironment,
     MachineResources,
@@ -42,3 +43,21 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
         default=None,
         description="Previous version to replace. Must be signed by the same address",
     )
+
+    @property
+    def gpu_requirements(self) -> Sequence[GpuProperties]:
+        """Returns the GPU requirements of the VM, if any."""
+        return self.requirements.gpu_requirements if self.requirements else []
+
+    @property
+    def requires_gpu(self) -> bool:
+        """Whether the VM requires one or more GPUs."""
+        return len(self.gpu_requirements) > 0
+
+    @property
+    def is_confidential(self) -> bool:
+        """Whether the VM is configured as a confidential VM."""
+        return (
+            isinstance(self.environment, InstanceEnvironment)
+            and self.environment.trusted_execution is not None
+        )
