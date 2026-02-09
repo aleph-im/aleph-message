@@ -19,10 +19,13 @@ from aleph_message.models import (
     ItemType,
     MessagesResponse,
     MessageType,
+    Payment,
     PaymentType,
     PostContent,
     PostMessage,
     ProgramMessage,
+    StoreContent,
+    StoreMessage,
     add_item_content_and_hash,
     create_message_from_file,
     create_message_from_json,
@@ -551,3 +554,107 @@ def test_terms_and_conditions_only_for_payg_instances():
         instance_message = create_message_from_json(
             json.dumps(message_dict), factory=InstanceMessage
         )
+
+
+def test_store_content_without_payment():
+    """Test that StoreContent works without payment (backward compatibility, defaults to hold tier)."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+    )
+    assert store_content.payment is None  # Defaults to None (hold tier behavior)
+    assert store_content.item_hash == "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003"
+
+
+def test_store_content_with_hold_payment():
+    """Test that StoreContent works with explicit hold payment."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        payment=Payment(type=PaymentType.hold),
+    )
+    assert store_content.payment is not None
+    assert store_content.payment.type == PaymentType.hold
+    assert not store_content.payment.is_stream
+    assert not store_content.payment.is_credit
+
+
+def test_store_content_with_credit_payment():
+    """Test that StoreContent works with credit payment."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        payment=Payment(type=PaymentType.credit),
+    )
+    assert store_content.payment is not None
+    assert store_content.payment.type == PaymentType.credit
+    assert store_content.payment.is_credit
+    assert not store_content.payment.is_stream
+
+
+def test_store_content_rejects_superfluid_payment():
+    """Test that StoreContent rejects superfluid (stream) payment."""
+    with pytest.raises(ValueError) as exc_info:
+        StoreContent(
+            address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            time=1625652287.017,
+            item_type=ItemType.storage,
+            item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+            payment=Payment(type=PaymentType.superfluid, receiver="0xReceiver"),
+        )
+    assert "Only 'hold' and 'credit' payment types are supported" in str(exc_info.value)
+
+
+def test_store_message_with_credit_payment():
+    """Test creating a full StoreMessage with credit payment."""
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "STORE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": 1625652287.017,
+            "item_type": "storage",
+            "item_hash": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+            "payment": {
+                "type": "credit",
+            },
+        },
+        "signature": "0x123456789",
+    }
+
+    message = create_new_message(message_dict, factory=StoreMessage)
+    assert isinstance(message, StoreMessage)
+    assert message.content.payment is not None
+    assert message.content.payment.type == PaymentType.credit
+    assert message.content.payment.is_credit
+
+
+def test_store_message_backward_compatibility_no_payment():
+    """Test that StoreMessage works without payment field (backward compatibility)."""
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "STORE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": 1625652287.017,
+            "item_type": "storage",
+            "item_hash": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        },
+        "signature": "0x123456789",
+    }
+
+    message = create_new_message(message_dict, factory=StoreMessage)
+    assert isinstance(message, StoreMessage)
+    assert message.content.payment is None  # Defaults to None (hold tier behavior)
