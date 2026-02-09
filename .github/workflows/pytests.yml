@@ -39,7 +39,7 @@ jobs:
 
       - run: /tmp/venv/bin/hatch run testing:cov
 
-      - uses: codecov/codecov-action@v4.0.1
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: aleph-im/aleph-message

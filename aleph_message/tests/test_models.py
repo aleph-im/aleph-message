@@ -19,10 +19,13 @@ from aleph_message.models import (
     ItemType,
     MessagesResponse,
     MessageType,
+    Payment,
     PaymentType,
     PostContent,
     PostMessage,
     ProgramMessage,
+    StoreContent,
+    StoreMessage,
     add_item_content_and_hash,
     create_message_from_file,
     create_message_from_json,
@@ -34,7 +37,7 @@ from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
 
-ALEPH_API_SERVER = "https://api2.aleph.im"
+ALEPH_API_SERVER = "https://api.twentysix.testnet.network"
 
 HASHES_TO_IGNORE = (
     "2fe5470ebcc5b6168b778ca3baadfd1618dc3acdb0690478760d21ff24b03164",
@@ -44,8 +47,8 @@ HASHES_TO_IGNORE = (
 
 def test_message_response_aggregate():
     path = (
-        "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00"
-        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
+        "/api/v0/messages.json?hashes=4955df177e225e0380d27283963c7d798e841ebe0b53abc44373ade2860eb458"
+        "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=AGGREGATE"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
@@ -58,8 +61,8 @@ def test_message_response_aggregate():
 
 def test_message_response_post():
     path = (
-        "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b"
-        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
+        "/api/v0/messages.json?hashes=05c0c72091f6b3ea01173baf1a735974c81abf29be729d088771ed32cb6af108"
+        "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=POST"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
@@ -69,8 +72,8 @@ def test_message_response_post():
 
 def test_message_response_store():
     path = (
-        "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305"
-        "&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
+        "/api/v0/messages.json?hashes=37e35fa3842a7c2f610cc423a209aedd6db3d5fd5c2507d23140b2d704a95fe5"
+        "&addresses=0xe1F7220D201C64871Cefb25320a8a588393eE508&msgType=STORE"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
@@ -551,3 +554,110 @@ def test_terms_and_conditions_only_for_payg_instances():
         instance_message = create_message_from_json(
             json.dumps(message_dict), factory=InstanceMessage
         )
+
+
+def test_store_content_without_payment():
+    """Test that StoreContent works without payment (backward compatibility, defaults to hold tier)."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+    )
+    assert store_content.payment is None  # Defaults to None (hold tier behavior)
+    assert (
+        store_content.item_hash
+        == "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003"
+    )
+
+
+def test_store_content_with_hold_payment():
+    """Test that StoreContent works with explicit hold payment."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        payment=Payment(type=PaymentType.hold),
+    )
+    assert store_content.payment is not None
+    assert store_content.payment.type == PaymentType.hold
+    assert not store_content.payment.is_stream
+    assert not store_content.payment.is_credit
+
+
+def test_store_content_with_credit_payment():
+    """Test that StoreContent works with credit payment."""
+    store_content = StoreContent(
+        address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        time=1625652287.017,
+        item_type=ItemType.storage,
+        item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        payment=Payment(type=PaymentType.credit),
+    )
+    assert store_content.payment is not None
+    assert store_content.payment.type == PaymentType.credit
+    assert store_content.payment.is_credit
+    assert not store_content.payment.is_stream
+
+
+def test_store_content_rejects_superfluid_payment():
+    """Test that StoreContent rejects superfluid (stream) payment."""
+    with pytest.raises(ValueError) as exc_info:
+        StoreContent(
+            address="0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            time=1625652287.017,
+            item_type=ItemType.storage,
+            item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+            payment=Payment(type=PaymentType.superfluid, receiver="0xReceiver"),
+        )
+    assert "Only 'hold' and 'credit' payment types are supported" in str(exc_info.value)
+
+
+def test_store_message_with_credit_payment():
+    """Test creating a full StoreMessage with credit payment."""
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "STORE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": 1625652287.017,
+            "item_type": "storage",
+            "item_hash": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+            "payment": {
+                "type": "credit",
+            },
+        },
+        "signature": "0x123456789",
+    }
+
+    message = create_new_message(message_dict, factory=StoreMessage)
+    assert isinstance(message, StoreMessage)
+    assert message.content.payment is not None
+    assert message.content.payment.type == PaymentType.credit
+    assert message.content.payment.is_credit
+
+
+def test_store_message_backward_compatibility_no_payment():
+    """Test that StoreMessage works without payment field (backward compatibility)."""
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "STORE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": 1625652287.017,
+            "item_type": "storage",
+            "item_hash": "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
+        },
+        "signature": "0x123456789",
+    }
+
+    message = create_new_message(message_dict, factory=StoreMessage)
+    assert isinstance(message, StoreMessage)
+    assert message.content.payment is None  # Defaults to None (hold tier behavior)
