@@ -37,7 +37,7 @@ from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
 
-ALEPH_API_SERVER = "https://api2.aleph.im"
+ALEPH_API_SERVER = "https://api.twentysix.testnet.network"
 
 HASHES_TO_IGNORE = (
     "2fe5470ebcc5b6168b778ca3baadfd1618dc3acdb0690478760d21ff24b03164",
@@ -565,7 +565,10 @@ def test_store_content_without_payment():
         item_hash="7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003",
     )
     assert store_content.payment is None  # Defaults to None (hold tier behavior)
-    assert store_content.item_hash == "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003"
+    assert (
+        store_content.item_hash
+        == "7eb2eca2378ea8855336ed76c8b26219f1cb90234d04441de9cf8cb1c649d003"
+    )
 
 
 def test_store_content_with_hold_payment():
