@@ -47,8 +47,8 @@ HASHES_TO_IGNORE = (
 
 def test_message_response_aggregate():
     path = (
-        "/api/v0/messages.json?hashes=9b21eb870d01bf64d23e1d4475e342c8f958fcd544adc37db07d8281da070b00"
-        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=AGGREGATE"
+        "/api/v0/messages.json?hashes=4955df177e225e0380d27283963c7d798e841ebe0b53abc44373ade2860eb458"
+        "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=AGGREGATE"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
@@ -61,8 +61,8 @@ def test_message_response_aggregate():
 
 def test_message_response_post():
     path = (
-        "/api/v0/messages.json?hashes=6e5d0c7dce83bfd4c5d113ef67fbc0411f66c9c0c75421d61ace3730b0d1dd0b"
-        "&addresses=0xa1B3bb7d2332383D96b7796B908fB7f7F3c2Be10&msgType=POST"
+        "/api/v0/messages.json?hashes=05c0c72091f6b3ea01173baf1a735974c81abf29be729d088771ed32cb6af108"
+        "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=POST"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
@@ -72,8 +72,8 @@ def test_message_response_post():
 
 def test_message_response_store():
     path = (
-        "/api/v0/messages.json?hashes=53c9317457d2d3caa205748917bc116921f4e8313e830c1c05c6eb6e2d9d9305"
-        "&addresses=0x231a2342b7918129De0b910411378E22379F69b8&msgType=STORE"
+        "/api/v0/messages.json?hashes=37e35fa3842a7c2f610cc423a209aedd6db3d5fd5c2507d23140b2d704a95fe5"
+        "&addresses=0xe1F7220D201C64871Cefb25320a8a588393eE508&msgType=STORE"
     )
     data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
 
