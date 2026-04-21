@@ -20,6 +20,12 @@ jobs:
         os: [ubuntu-22.04, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
 
+    env:
+      # Allow redirecting the tests to another Aleph node by setting the
+      # ALEPH_API_SERVER repository variable. Defaults to the long-standing
+      # public testnet URL when the variable is not set.
+      ALEPH_API_SERVER: ${{ vars.ALEPH_API_SERVER || 'https://api.twentysix.testnet.network' }}
+
     steps:
       - uses: actions/checkout@v3
 
@@ -36,6 +42,9 @@ jobs:
       - run: |
           python3 -m venv /tmp/venv
           /tmp/venv/bin/python -m pip install --upgrade pip hatch coverage
+
+      - name: Show test API server
+        run: echo "Running tests against ALEPH_API_SERVER=$ALEPH_API_SERVER"
 
       - run: /tmp/venv/bin/hatch run testing:cov
 
