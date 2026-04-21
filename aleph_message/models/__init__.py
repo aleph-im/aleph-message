@@ -20,6 +20,9 @@ from .item_hash import ItemHash, ItemType
 logger = logging.getLogger(__name__)
 
 
+MAX_CHANNEL_LENGTH = 128
+
+
 __all__ = [
     "AggregateContent",
     "AggregateMessage",
@@ -65,7 +68,7 @@ class ChainRef(BaseModel):
     """Some POST messages have a 'ref' field referencing other content"""
 
     chain: Chain
-    channel: Optional[str] = None
+    channel: Optional[str] = Field(default=None, max_length=MAX_CHANNEL_LENGTH)
     item_content: str
     item_hash: ItemHash
     item_type: ItemType
@@ -200,6 +203,7 @@ class BaseMessage(BaseModel):
     type: MessageType = Field(description="Type of message (POST, AGGREGATE or STORE)")
     channel: Optional[str] = Field(
         default=None,
+        max_length=MAX_CHANNEL_LENGTH,
         description="Channel of the message, one application ideally has one channel",
     )
     confirmations: Optional[List[MessageConfirmation]] = Field(
