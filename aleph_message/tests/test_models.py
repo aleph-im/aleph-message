@@ -45,12 +45,29 @@ HASHES_TO_IGNORE = (
 )
 
 
+def _fetch_json_or_skip(url: str, **kwargs) -> dict:
+    """Fetch ``url`` and return the decoded JSON body. On any network-class
+    failure (connection refused, timeout, non-2xx, non-JSON body) skip the
+    test with a readable reason instead of reporting a hard failure — a
+    testnet outage is not a library regression, and we want real parsing
+    regressions to remain distinguishable from transient infrastructure
+    issues."""
+    try:
+        response = requests.get(url, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, json.JSONDecodeError) as err:
+        pytest.skip(f"Testnet unreachable ({type(err).__name__}): {err}")
+        raise  # unreachable: pytest.skip raises; present to satisfy the type checker
+
+
+@pytest.mark.network
 def test_message_response_aggregate():
     path = (
         "/api/v0/messages.json?hashes=4955df177e225e0380d27283963c7d798e841ebe0b53abc44373ade2860eb458"
         "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=AGGREGATE"
     )
-    data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
+    data_dict = _fetch_json_or_skip(f"{ALEPH_API_SERVER}{path}")
 
     message = data_dict["messages"][0]
     AggregateMessage.model_validate(message)
@@ -59,35 +76,36 @@ def test_message_response_aggregate():
     assert response
 
 
+@pytest.mark.network
 def test_message_response_post():
     path = (
         "/api/v0/messages.json?hashes=05c0c72091f6b3ea01173baf1a735974c81abf29be729d088771ed32cb6af108"
         "&addresses=0x54C43026a026AAEfE9Cd886E2e6a15Dc7Ac20912&msgType=POST"
     )
-    data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
+    data_dict = _fetch_json_or_skip(f"{ALEPH_API_SERVER}{path}")
 
     response = MessagesResponse.model_validate(data_dict)
     assert response
 
 
+@pytest.mark.network
 def test_message_response_store():
     path = (
         "/api/v0/messages.json?hashes=37e35fa3842a7c2f610cc423a209aedd6db3d5fd5c2507d23140b2d704a95fe5"
         "&addresses=0xe1F7220D201C64871Cefb25320a8a588393eE508&msgType=STORE"
     )
-    data_dict = requests.get(f"{ALEPH_API_SERVER}{path}").json()
+    data_dict = _fetch_json_or_skip(f"{ALEPH_API_SERVER}{path}")
 
     response = MessagesResponse.model_validate(data_dict)
     assert response
 
 
+@pytest.mark.network
 def test_messages_last_page():
     path = "/api/v0/messages.json"
 
     page = 1
-    response = requests.get(f"{ALEPH_API_SERVER}{path}?page={page}")
-    response.raise_for_status()
-    data_dict = response.json()
+    data_dict = _fetch_json_or_skip(f"{ALEPH_API_SERVER}{path}?page={page}")
 
     for message_dict in data_dict["messages"]:
         if message_dict["item_hash"] in HASHES_TO_IGNORE:

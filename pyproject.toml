@@ -132,9 +132,10 @@ git-only = [
 ]
 default-ignore = true
 
-[tool.pytest]
+[tool.pytest.ini_options]
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "network: marks tests that reach a live Aleph node (deselect with '-m \"not network\"')",
 ]
 
 [tool.coverage.run]
