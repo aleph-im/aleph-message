@@ -165,7 +165,11 @@ class StoreContent(BaseContent):
             )
         return v
 
-    model_config = ConfigDict(extra="allow")
+    # `extra="ignore"` drops unknown fields silently rather than preserving
+    # them (previous `extra="allow"`) or rejecting the message outright
+    # (`extra="forbid"`). Messages in the wild may contain legacy extras;
+    # "ignore" keeps them accepted without widening the persistence surface.
+    model_config = ConfigDict(extra="ignore")
 
 
 MAX_FORGET_TARGETS = 1000
