@@ -1,4 +1,8 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+# Unix timestamp upper bound (year 2262). Well below the float-precision
+# cliff at 2**53 while still leaving headroom for any realistic message.
+MAX_CONTENT_TIME = 9_223_372_036.0
 
 
 def hashable(obj):
@@ -22,6 +26,6 @@ class BaseContent(BaseModel):
     """Base template for message content"""
 
     address: str
-    time: float
+    time: float = Field(ge=0, le=MAX_CONTENT_TIME)
 
     model_config = ConfigDict(extra="forbid")
