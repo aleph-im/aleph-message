@@ -61,10 +61,17 @@ class PortMapping(PublishedPort):
     )
 
 
+MAX_VCPUS = 256
+MAX_MEMORY_MIB = 1024 * 1024  # 1 TiB
+# ~10 years expressed in seconds. Guards against overflow in downstream
+# cost calculations while remaining high enough for long-running instances.
+MAX_SECONDS = 10 * 365 * 24 * 3600
+
+
 class MachineResources(HashableModel):
-    vcpus: int = 1
-    memory: Mebibytes = Mebibytes(128)
-    seconds: int = 1
+    vcpus: int = Field(default=1, ge=1, le=MAX_VCPUS)
+    memory: Mebibytes = Field(default=Mebibytes(128), ge=1, le=MAX_MEMORY_MIB)
+    seconds: int = Field(default=1, ge=1, le=MAX_SECONDS)
     published_ports: Optional[List[PublishedPort]] = Field(
         default=None, description="IPv4 ports to map to open ports on the host."
     )
