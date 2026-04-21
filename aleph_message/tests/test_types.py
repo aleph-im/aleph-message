@@ -75,3 +75,31 @@ def test_bad_item_hashes():
     # UnknownHashError should be a ValueError
     with pytest.raises(ValueError):
         ItemHash("This is not a hash !")
+
+
+def test_storage_hash_rejects_non_hex():
+    # 64-char non-hex strings (previously accepted) must now be rejected.
+    with pytest.raises(UnknownHashError):
+        ItemHash(".//" + "../" * 12 + "root/.ssh/authorized_keys")  # path-traversal
+    with pytest.raises(UnknownHashError):
+        ItemHash("X" * 64)
+    with pytest.raises(UnknownHashError):
+        ItemHash("0123456789ABCDEF" * 4)  # hex but uppercase
+
+
+def test_cidv0_rejects_invalid_alphabet():
+    # 44-char strings starting with "Qm" must match base58btc.
+    with pytest.raises(UnknownHashError):
+        ItemHash("Qm" + "0" * 42)  # '0' not in base58btc
+    with pytest.raises(UnknownHashError):
+        ItemHash("Qm" + "O" * 42)  # 'O' not in base58btc
+    with pytest.raises(UnknownHashError):
+        ItemHash("Qm" + "l" * 42)  # 'l' not in base58btc
+
+
+def test_cidv1_rejects_invalid_alphabet():
+    # 59-char strings starting with "bafy" must match base32 (lowercase, no padding).
+    with pytest.raises(UnknownHashError):
+        ItemHash("bafy" + "1" * 55)  # '1' not in base32
+    with pytest.raises(UnknownHashError):
+        ItemHash("bafy" + "Z" * 55)  # uppercase not allowed

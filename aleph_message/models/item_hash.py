@@ -6,6 +6,14 @@ from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
 
+# SHA-256 hex digest used as the `storage` item hash.
+_HEX_LOWER = frozenset("0123456789abcdef")
+# Base58btc excludes 0, O, I and l to avoid visually-ambiguous characters.
+_BASE58BTC = frozenset("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+# Base32 (RFC 4648, lowercase, no padding), the encoding used by the
+# `bafy` CIDv1 prefix.
+_BASE32_LOWER = frozenset("abcdefghijklmnopqrstuvwxyz234567")
+
 
 class ItemType(str, Enum):
     """Item storage options"""
@@ -18,14 +26,21 @@ class ItemType(str, Enum):
     @lru_cache
     def from_hash(cls, item_hash: str) -> "ItemType":
         # https://docs.ipfs.io/concepts/content-addressing/#identifier-formats
-        if item_hash.startswith("Qm") and 44 <= len(item_hash) <= 46:  # CIDv0
+        if (
+            item_hash.startswith("Qm")
+            and 44 <= len(item_hash) <= 46
+            and _BASE58BTC.issuperset(item_hash[2:])
+        ):
             return cls.ipfs
-        elif item_hash.startswith("bafy") and len(item_hash) == 59:  # CIDv1
+        if (
+            item_hash.startswith("bafy")
+            and len(item_hash) == 59
+            and _BASE32_LOWER.issuperset(item_hash[4:])
+        ):
             return cls.ipfs
-        elif len(item_hash) == 64:
+        if len(item_hash) == 64 and _HEX_LOWER.issuperset(item_hash):
             return cls.storage
-        else:
-            raise UnknownHashError(f"Could not determine hash type: '{item_hash}'")
+        raise UnknownHashError(f"Could not determine hash type: '{item_hash}'")
 
     @classmethod
     def is_storage(cls, item_hash: str):
