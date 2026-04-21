@@ -66,8 +66,12 @@ dependencies = [
 
 # XXX see https://github.com/aleph-im/pyaleph/blob/main/.github/workflows/pyaleph-ci.yml
 [tool.hatch.envs.testing.scripts]
-test = "pytest -v {args:.}"
-test-cov = "pytest -v --cov {args:.}"
+# Default test runs skip tests marked `network` (which hit a live testnet
+# node) so CI does not depend on that endpoint's availability. Run
+# `hatch -e testing run test-network` to exercise them explicitly.
+test = "pytest -v -m 'not network' {args:.}"
+test-cov = "pytest -v -m 'not network' --cov {args:.}"
+test-network = "pytest -v -m network {args:.}"
 cov-report = [
   "- coverage combine",
   "coverage report",
@@ -132,9 +136,10 @@ git-only = [
 ]
 default-ignore = true
 
-[tool.pytest]
+[tool.pytest.ini_options]
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "network: marks tests that require network access to a live Aleph node (deselect with '-m \"not network\"')",
 ]
 
 [tool.coverage.run]

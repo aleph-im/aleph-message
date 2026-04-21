@@ -45,6 +45,7 @@ HASHES_TO_IGNORE = (
 )
 
 
+@pytest.mark.network
 def test_message_response_aggregate():
     path = (
         "/api/v0/messages.json?hashes=4955df177e225e0380d27283963c7d798e841ebe0b53abc44373ade2860eb458"
@@ -59,6 +60,7 @@ def test_message_response_aggregate():
     assert response
 
 
+@pytest.mark.network
 def test_message_response_post():
     path = (
         "/api/v0/messages.json?hashes=05c0c72091f6b3ea01173baf1a735974c81abf29be729d088771ed32cb6af108"
@@ -70,6 +72,7 @@ def test_message_response_post():
     assert response
 
 
+@pytest.mark.network
 def test_message_response_store():
     path = (
         "/api/v0/messages.json?hashes=37e35fa3842a7c2f610cc423a209aedd6db3d5fd5c2507d23140b2d704a95fe5"
@@ -81,6 +84,7 @@ def test_message_response_store():
     assert response
 
 
+@pytest.mark.network
 def test_messages_last_page():
     path = "/api/v0/messages.json"
 
