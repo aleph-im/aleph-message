@@ -1,10 +1,13 @@
 import json
+import os
 from os import makedirs
 from os.path import abspath, join
 
 import requests
 
-ALEPH_API_SERVER = "https://api.twentysix.testnet.network"
+ALEPH_API_SERVER = os.environ.get(
+    "ALEPH_API_SERVER", "https://api.twentysix.testnet.network"
+)
 MESSAGES_STORAGE_PATH: str = abspath(join(__file__, "../test_messages"))
 
 
