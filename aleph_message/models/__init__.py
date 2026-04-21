@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 MAX_CHANNEL_LENGTH = 128
-MAX_FORGET_TARGETS = 1000
-MAX_FORGET_REASON_LENGTH = 1000
 
 
 __all__ = [
