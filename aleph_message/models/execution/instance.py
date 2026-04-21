@@ -1,18 +1,13 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from aleph_message.models.abstract import HashableModel
 
-from .abstract import (
-    MAX_AUTHORIZED_KEYS,
-    MAX_METADATA_ENTRIES,
-    AuthorizedKey,
-    BaseExecutableContent,
-)
+from .abstract import BaseExecutableContent
 from .base import Payment
 from .environment import HypervisorType, InstanceEnvironment
 from .volume import ParentVolume, PersistentVolumeSizeMib, VolumePersistence
@@ -36,13 +31,7 @@ class RootfsVolume(HashableModel):
 class InstanceContent(BaseExecutableContent):
     """Message content for scheduling a VM instance on the network."""
 
-    metadata: Optional[Dict] = Field(default=None, max_length=MAX_METADATA_ENTRIES)
     payment: Optional[Payment] = None
-    authorized_keys: Optional[List[AuthorizedKey]] = Field(
-        default=None,
-        max_length=MAX_AUTHORIZED_KEYS,
-        description="List of authorized SSH keys",
-    )
     environment: InstanceEnvironment = Field(
         description="Properties of the instance execution environment"
     )
