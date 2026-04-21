@@ -37,7 +37,12 @@ from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
 
-ALEPH_API_SERVER = "https://api.twentysix.testnet.network"
+# Override with the ALEPH_API_SERVER environment variable to run the
+# network tests against a different node (e.g. while the default
+# testnet endpoint is under maintenance).
+ALEPH_API_SERVER = os.environ.get(
+    "ALEPH_API_SERVER", "https://api.twentysix.testnet.network"
+)
 
 HASHES_TO_IGNORE = (
     "2fe5470ebcc5b6168b778ca3baadfd1618dc3acdb0690478760d21ff24b03164",
