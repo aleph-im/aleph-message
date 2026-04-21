@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import Field
 
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
-from .abstract import BaseExecutableContent
+from .abstract import (
+    MAX_AUTHORIZED_KEYS,
+    MAX_METADATA_ENTRIES,
+    AuthorizedKey,
+    BaseExecutableContent,
+)
 from .base import Encoding, Interface, MachineType, Payment
 from .environment import FunctionTriggers
 
@@ -73,6 +78,8 @@ class ProgramContent(BaseExecutableContent):
     )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
 
-    metadata: Optional[dict] = None
-    authorized_keys: Optional[List[str]] = None
+    metadata: Optional[Dict] = Field(default=None, max_length=MAX_METADATA_ENTRIES)
+    authorized_keys: Optional[List[AuthorizedKey]] = Field(
+        default=None, max_length=MAX_AUTHORIZED_KEYS
+    )
     payment: Optional[Payment] = None
