@@ -4,17 +4,31 @@ import re
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 
 MAX_ADDRESS_REGEX_LENGTH = 256
+MAX_SUBSCRIPTION_ENTRIES = 32
 
 
 class Subscription(HashableModel):
     """A subscription is used to trigger a program in response to a FunctionTrigger."""
+
+    # Subscriptions are user-defined filter criteria; the model intentionally
+    # accepts arbitrary keys. Cap the number of entries so a subscription
+    # object can't be padded with hundreds of keys.
+    @model_validator(mode="after")
+    def check_subscription_size(self) -> "Subscription":
+        extra = self.__pydantic_extra__ or {}
+        if len(extra) > MAX_SUBSCRIPTION_ENTRIES:
+            raise ValueError(
+                f"Subscription has {len(extra)} entries, "
+                f"maximum allowed is {MAX_SUBSCRIPTION_ENTRIES}"
+            )
+        return self
 
     model_config = ConfigDict(extra="allow")
 
@@ -159,7 +173,7 @@ class TrustedExecutionEnvironment(HashableModel):
         description="Policy of the TEE. Default value is 0x01 for SEV without debugging.",
     )
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class InstanceEnvironment(HashableModel):
@@ -225,4 +239,4 @@ class HostRequirements(HashableModel):
     def gpu_requirements(self):
         return self.gpu or []
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
