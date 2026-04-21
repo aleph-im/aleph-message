@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
@@ -8,6 +9,8 @@ from pydantic import ConfigDict, Field, field_validator
 from ...utils import Mebibytes
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
+
+MAX_ADDRESS_REGEX_LENGTH = 256
 
 
 class Subscription(HashableModel):
@@ -183,7 +186,9 @@ class InstanceEnvironment(HashableModel):
 class NodeRequirements(HashableModel):
     owner: Optional[str] = Field(default=None, description="Address of the node owner")
     address_regex: Optional[str] = Field(
-        default=None, description="Node address must match this regular expression"
+        default=None,
+        max_length=MAX_ADDRESS_REGEX_LENGTH,
+        description="Node address must match this regular expression",
     )
     node_hash: Optional[ItemHash] = Field(
         default=None, description="Hash of the compute resource node that must be used"
@@ -193,6 +198,16 @@ class NodeRequirements(HashableModel):
     )
 
     model_config = ConfigDict(extra="forbid")
+
+    @field_validator("address_regex")
+    def check_address_regex_compiles(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        try:
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f"Invalid regular expression: {exc}") from exc
+        return v
 
 
 class HostRequirements(HashableModel):

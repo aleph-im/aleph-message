@@ -32,7 +32,12 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
-from aleph_message.models.execution.environment import AMDSEVPolicy, HypervisorType
+from aleph_message.models.execution.environment import (
+    MAX_ADDRESS_REGEX_LENGTH,
+    AMDSEVPolicy,
+    HypervisorType,
+    NodeRequirements,
+)
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
@@ -666,3 +671,23 @@ def test_store_message_backward_compatibility_no_payment():
     message = create_new_message(message_dict, factory=StoreMessage)
     assert isinstance(message, StoreMessage)
     assert message.content.payment is None  # Defaults to None (hold tier behavior)
+
+
+def test_address_regex_valid():
+    NodeRequirements(address_regex="^0x[a-f0-9]{40}$")
+
+
+def test_address_regex_invalid_raises():
+    with pytest.raises(ValidationError):
+        NodeRequirements(address_regex="[unclosed")
+
+
+def test_address_regex_length_boundary():
+    # Exactly MAX_ADDRESS_REGEX_LENGTH is allowed; one over is rejected.
+    NodeRequirements(address_regex="a" * MAX_ADDRESS_REGEX_LENGTH)
+    with pytest.raises(ValidationError):
+        NodeRequirements(address_regex="a" * (MAX_ADDRESS_REGEX_LENGTH + 1))
+
+
+def test_address_regex_none_passes():
+    assert NodeRequirements(address_regex=None).address_regex is None
