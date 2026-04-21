@@ -249,9 +249,12 @@ class BaseMessage(BaseModel):
         if item_type == ItemType.inline:
             item_content: str = values.data.get("item_content")
 
-            # Double check that the hash function is supported
+            # Double check that the hash function is supported.
             hash_type = values.data.get("hash_type") or HashType.sha256
-            assert hash_type.value == HashType.sha256
+            if hash_type.value != HashType.sha256:
+                raise ValueError(
+                    f"Unsupported hash type '{hash_type.value}', expected 'sha256'"
+                )
 
             computed_hash: str = sha256(item_content.encode()).hexdigest()
             if v != computed_hash:
@@ -262,8 +265,8 @@ class BaseMessage(BaseModel):
         elif item_type == ItemType.ipfs:
             # TODO: CHeck that the hash looks like an IPFS multihash
             pass
-        else:
-            assert item_type == ItemType.storage
+        elif item_type != ItemType.storage:
+            raise ValueError(f"Unknown item_type '{item_type}'")
         return v
 
     @field_validator("confirmed")
