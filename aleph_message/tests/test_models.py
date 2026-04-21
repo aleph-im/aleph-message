@@ -32,11 +32,25 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
+from aleph_message.models.execution.abstract import (
+    MAX_AUTHORIZED_KEY_LENGTH,
+    MAX_AUTHORIZED_KEYS,
+    MAX_METADATA_ENTRIES,
+    MAX_REPLACES_LENGTH,
+    MAX_VARIABLE_ENTRIES,
+    MAX_VARIABLE_KEY_LENGTH,
+    MAX_VARIABLE_VALUE_LENGTH,
+    MAX_VOLUMES,
+)
 from aleph_message.models.execution.environment import (
     MAX_ADDRESS_REGEX_LENGTH,
     AMDSEVPolicy,
     HypervisorType,
     NodeRequirements,
+)
+from aleph_message.models.execution.volume import (
+    MAX_VOLUME_LABEL_LENGTH,
+    EphemeralVolume,
 )
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
@@ -691,3 +705,114 @@ def test_address_regex_length_boundary():
 
 def test_address_regex_none_passes():
     assert NodeRequirements(address_regex=None).address_regex is None
+
+
+def _load_instance_fixture() -> dict:
+    path = Path(__file__).parent / "messages/instance_machine.json"
+    return json.loads(path.read_text())
+
+
+def test_metadata_entries_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {
+        str(i): i for i in range(MAX_METADATA_ENTRIES)
+    }
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["metadata"] = {
+        str(i): i for i in range(MAX_METADATA_ENTRIES + 1)
+    }
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_authorized_keys_count_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["authorized_keys"] = ["key"] * MAX_AUTHORIZED_KEYS
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["authorized_keys"] = ["key"] * (MAX_AUTHORIZED_KEYS + 1)
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_authorized_key_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["authorized_keys"] = ["a" * MAX_AUTHORIZED_KEY_LENGTH]
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["authorized_keys"] = ["a" * (MAX_AUTHORIZED_KEY_LENGTH + 1)]
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_variables_entries_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["variables"] = {
+        str(i): str(i) for i in range(MAX_VARIABLE_ENTRIES)
+    }
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["variables"] = {
+        str(i): str(i) for i in range(MAX_VARIABLE_ENTRIES + 1)
+    }
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_variable_key_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["variables"] = {"a" * MAX_VARIABLE_KEY_LENGTH: "v"}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["variables"] = {"a" * (MAX_VARIABLE_KEY_LENGTH + 1): "v"}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_variable_value_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["variables"] = {"k": "v" * MAX_VARIABLE_VALUE_LENGTH}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["variables"] = {"k": "v" * (MAX_VARIABLE_VALUE_LENGTH + 1)}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_volumes_count_boundary():
+    message_dict = _load_instance_fixture()
+    volume = {"ephemeral": True, "mount": "/tmp/a", "size_mib": 1}
+    message_dict["content"]["volumes"] = [volume] * MAX_VOLUMES
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["volumes"] = [volume] * (MAX_VOLUMES + 1)
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_replaces_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["replaces"] = "x" * MAX_REPLACES_LENGTH
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["replaces"] = "x" * (MAX_REPLACES_LENGTH + 1)
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_volume_label_length_boundary():
+    # comment/mount/name share MAX_VOLUME_LABEL_LENGTH; exercising comment is enough.
+    EphemeralVolume(
+        ephemeral=True,
+        mount="/tmp/a",
+        size_mib=1,
+        comment="c" * MAX_VOLUME_LABEL_LENGTH,
+    )
+    with pytest.raises(ValidationError):
+        EphemeralVolume(
+            ephemeral=True,
+            mount="/tmp/a",
+            size_mib=1,
+            comment="c" * (MAX_VOLUME_LABEL_LENGTH + 1),
+        )
