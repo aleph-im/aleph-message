@@ -165,12 +165,18 @@ class StoreContent(BaseContent):
     model_config = ConfigDict(extra="allow")
 
 
+MAX_FORGET_TARGETS = 1000
+MAX_FORGET_REASON_LENGTH = 1000
+
+
 class ForgetContent(BaseContent):
     """Content of a FORGET message"""
 
-    hashes: List[ItemHash]
-    aggregates: List[ItemHash] = Field(default_factory=list)
-    reason: Optional[str] = None
+    hashes: List[ItemHash] = Field(max_length=MAX_FORGET_TARGETS)
+    aggregates: List[ItemHash] = Field(
+        default_factory=list, max_length=MAX_FORGET_TARGETS
+    )
+    reason: Optional[str] = Field(default=None, max_length=MAX_FORGET_REASON_LENGTH)
 
     def __hash__(self):
         # Convert List to Tuple for hashing
