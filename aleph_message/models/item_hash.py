@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from functools import lru_cache
 from typing import Any
@@ -5,6 +6,16 @@ from typing import Any
 from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
+
+# SHA-256 hex digest used as the `storage` item hash.
+_STORAGE_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+# CIDv0 is base58btc-encoded. Base58btc excludes 0, O, I and l to avoid
+# visually-ambiguous characters.
+_CIDV0_RE = re.compile(r"^Qm[1-9A-HJ-NP-Za-km-z]{42,44}$")
+# CIDv1 emitted by the previous heuristic used the `bafy` multibase+codec
+# prefix followed by base32 (RFC 4648, lowercase, no padding). Keep the
+# same length as before (59 chars total) and validate the alphabet.
+_CIDV1_RE = re.compile(r"^bafy[a-z2-7]{55}$")
 
 
 class ItemType(str, Enum):
@@ -18,14 +29,13 @@ class ItemType(str, Enum):
     @lru_cache
     def from_hash(cls, item_hash: str) -> "ItemType":
         # https://docs.ipfs.io/concepts/content-addressing/#identifier-formats
-        if item_hash.startswith("Qm") and 44 <= len(item_hash) <= 46:  # CIDv0
+        if _CIDV0_RE.match(item_hash):
             return cls.ipfs
-        elif item_hash.startswith("bafy") and len(item_hash) == 59:  # CIDv1
+        if _CIDV1_RE.match(item_hash):
             return cls.ipfs
-        elif len(item_hash) == 64:
+        if _STORAGE_HASH_RE.match(item_hash):
             return cls.storage
-        else:
-            raise UnknownHashError(f"Could not determine hash type: '{item_hash}'")
+        raise UnknownHashError(f"Could not determine hash type: '{item_hash}'")
 
     @classmethod
     def is_storage(cls, item_hash: str):
