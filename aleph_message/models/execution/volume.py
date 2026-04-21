@@ -10,10 +10,12 @@ from ...utils import Gigabytes, gigabyte_to_mebibyte
 from ..abstract import HashableModel
 from ..item_hash import ItemHash
 
+MAX_VOLUME_LABEL_LENGTH = 256
+
 
 class AbstractVolume(HashableModel, ABC):
-    comment: Optional[str] = None
-    mount: Optional[str] = None
+    comment: Optional[str] = Field(default=None, max_length=MAX_VOLUME_LABEL_LENGTH)
+    mount: Optional[str] = Field(default=None, max_length=MAX_VOLUME_LABEL_LENGTH)
 
     @abstractmethod
     def is_read_only(self): ...
@@ -75,7 +77,7 @@ PersistentVolumeSizeMib = Annotated[
 class PersistentVolume(AbstractVolume):
     parent: Optional[ParentVolume] = None
     persistence: Optional[VolumePersistence] = None
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=MAX_VOLUME_LABEL_LENGTH)
     size_mib: PersistentVolumeSizeMib
 
     def is_read_only(self):
