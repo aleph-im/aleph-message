@@ -73,6 +73,4 @@ class ProgramContent(BaseExecutableContent):
     )
     on: FunctionTriggers = Field(description="Signals that trigger an execution")
 
-    metadata: Optional[dict] = None
-    authorized_keys: Optional[List[str]] = None
     payment: Optional[Payment] = None
