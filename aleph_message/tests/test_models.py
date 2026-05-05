@@ -32,6 +32,10 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
+from aleph_message.models.abstract import (
+    MAX_N_TAGS,
+    MAX_TAG_LENGTH,
+)
 from aleph_message.models.execution.abstract import (
     MAX_AUTHORIZED_KEY_LENGTH,
     MAX_AUTHORIZED_KEYS,
@@ -136,6 +140,7 @@ def test_post_content():
     assert p1.model_dump() == {
         "address": "0x1",
         "time": 1.0,
+        "tags": None,
         "content": {"blah": "bar"},
         "ref": None,
         "type": "arbitrary_type",
@@ -816,3 +821,158 @@ def test_volume_label_length_boundary():
             size_mib=1,
             comment="c" * (MAX_VOLUME_LABEL_LENGTH + 1),
         )
+
+
+def test_tags_count_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["tags"] = [f"t{i}" for i in range(MAX_N_TAGS)]
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["tags"] = [f"t{i}" for i in range(MAX_N_TAGS + 1)]
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_tag_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["tags"] = ["a" * MAX_TAG_LENGTH]
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["tags"] = ["a" * (MAX_TAG_LENGTH + 1)]
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_tag_rejects_empty_string():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["tags"] = [""]
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_tags_default_none_excluded_from_serialization():
+    # Hash compatibility: an unset `tags` must not appear in the serialized
+    # form, otherwise existing item_hash values would no longer reproduce.
+    content = PostContent(
+        type="custom",
+        address="0x1",
+        content={"blah": "bar"},
+        time=1.0,
+    )
+    assert "tags" not in content.model_dump(exclude_none=True)
+
+
+def test_tags_round_trip():
+    content = PostContent(
+        type="custom",
+        address="0x1",
+        content={"blah": "bar"},
+        time=1.0,
+        tags=["alpha", "beta"],
+    )
+    dumped = content.model_dump(exclude_none=True)
+    assert dumped["tags"] == ["alpha", "beta"]
+    assert PostContent.model_validate(dumped).tags == ["alpha", "beta"]
+
+
+def _build_post_message(content_dict: dict) -> PostMessage:
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "POST",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "type": "test-message",
+            "time": "1625652287.017",
+            **content_dict,
+        },
+        "signature": "0x123456789",
+    }
+    return create_new_message(message_dict, factory=PostMessage)
+
+
+def test_tags_method_canonical_location():
+    msg = _build_post_message(
+        {"content": {"hello": "world"}, "tags": ["alpha", "beta"]}
+    )
+    assert msg.tags() == ["alpha", "beta"]
+
+
+def test_tags_method_legacy_post_fallback():
+    msg = _build_post_message(
+        {"content": {"hello": "world", "tags": ["legacy-a", "legacy-b"]}}
+    )
+    assert msg.tags() == ["legacy-a", "legacy-b"]
+
+
+def test_tags_method_canonical_wins_over_legacy():
+    msg = _build_post_message(
+        {
+            "content": {"hello": "world", "tags": ["legacy"]},
+            "tags": ["canonical"],
+        }
+    )
+    assert msg.tags() == ["canonical"]
+
+
+def test_tags_method_no_tags_returns_empty():
+    msg = _build_post_message({"content": {"hello": "world"}})
+    assert msg.tags() == []
+
+
+def test_tags_method_explicit_empty_list_respected():
+    # An explicit `tags=[]` on the canonical field is "no tags" and must NOT
+    # fall through to the legacy nested location.
+    msg = _build_post_message(
+        {"content": {"hello": "world", "tags": ["should-not-appear"]}, "tags": []}
+    )
+    assert msg.tags() == []
+
+
+def test_tags_method_ignores_non_dict_inner_content():
+    msg = _build_post_message({"content": "not-a-dict"})
+    assert msg.tags() == []
+
+
+def test_tags_method_ignores_non_list_legacy_tags():
+    msg = _build_post_message({"content": {"tags": "not-a-list"}})
+    assert msg.tags() == []
+
+
+def test_tags_method_filters_non_string_legacy_tags():
+    msg = _build_post_message({"content": {"tags": ["ok", 42, None, "also-ok"]}})
+    assert msg.tags() == ["ok", "also-ok"]
+
+
+def test_tags_method_aggregate_legacy_fallback():
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "AGGREGATE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": "1625652287.017",
+            "key": "my-aggregate",
+            "content": {"tags": ["agg-a", "agg-b"], "other_field": 1},
+        },
+        "signature": "0x123456789",
+    }
+    msg = create_new_message(message_dict, factory=AggregateMessage)
+    assert msg.tags() == ["agg-a", "agg-b"]
+
+
+def test_tags_method_no_legacy_fallback_for_executable():
+    # PROGRAM/INSTANCE messages do not get the nested-content fallback;
+    # only the canonical field counts for them.
+    message_dict = _load_instance_fixture()
+    message_dict["content"].pop("tags", None)
+    msg = create_new_message(message_dict, factory=InstanceMessage)
+    assert msg.tags() == []
+
+    message_dict["content"]["tags"] = ["canonical-instance"]
+    msg = create_new_message(message_dict, factory=InstanceMessage)
+    assert msg.tags() == ["canonical-instance"]
