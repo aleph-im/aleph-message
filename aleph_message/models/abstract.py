@@ -8,8 +8,9 @@ MAX_CONTENT_TIME = 9_223_372_036.0
 
 # Maximum number of tags per message.
 MAX_N_TAGS = 16
-# Maximum length of a tag.
-MAX_TAG_LENGTH = 64
+# Maximum length of a tag. Real-world tags in production reach ~200 chars,
+# so the cap is set to 256 for backward compatibility.
+MAX_TAG_LENGTH = 256
 
 Tag = Annotated[str, StringConstraints(min_length=1, max_length=MAX_TAG_LENGTH)]
 
