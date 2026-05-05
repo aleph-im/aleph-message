@@ -303,6 +303,29 @@ class BaseMessage(BaseModel):
         """Exclude MongoDB identifiers from dumps for historical reasons."""
         return self.model_dump(exclude={"id_", "_id"})
 
+    def tags(self) -> List[str]:
+        """Return the message's tags, applying type-specific legacy fallback.
+
+        Resolution order:
+        1. ``content.tags`` — the canonical location on ``BaseContent``.
+        2. ``content.content.tags`` — legacy location for POST and AGGREGATE
+           messages that pre-date the canonical field.
+
+        Returns an empty list when no tags are present. Non-string entries in
+        a legacy list are dropped.
+        """
+        if self.content.tags is not None:
+            return self.content.tags
+
+        if self.type in (MessageType.post, MessageType.aggregate):
+            nested = self.content.content
+            if isinstance(nested, dict):
+                legacy = nested.get("tags")
+                if isinstance(legacy, list):
+                    return [t for t in legacy if isinstance(t, str)]
+
+        return []
+
 
 class PostMessage(BaseMessage):
     """Unique data posts (unique data points, events, ...)"""
