@@ -1,4 +1,4 @@
-from typing import List, Optional, Annotated
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -36,6 +36,5 @@ class BaseContent(BaseModel):
 
     address: str
     time: float = Field(ge=0, le=MAX_CONTENT_TIME)
-    tags: Optional[List[Tag]] = Field(default=None, max_length=MAX_N_TAGS)
 
     model_config = ConfigDict(extra="forbid")
