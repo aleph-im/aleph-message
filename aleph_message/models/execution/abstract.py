@@ -3,9 +3,9 @@ from __future__ import annotations
 from abc import ABC
 from typing import Annotated, Any, Dict, List, Optional, Sequence, Union
 
-from pydantic import Field
+from pydantic import Field, TypeAdapter, field_validator
 
-from ..abstract import BaseContent, HashableModel
+from ..abstract import MAX_N_TAGS, BaseContent, HashableModel, Tag
 from .base import Payment
 from .environment import (
     FunctionEnvironment,
@@ -17,6 +17,8 @@ from .environment import (
 from .volume import MachineVolume
 
 MAX_METADATA_ENTRIES = 256
+MAX_METADATA_KEY_LENGTH = 64
+MAX_METADATA_VALUE_LENGTH = 512
 MAX_AUTHORIZED_KEYS = 256
 MAX_AUTHORIZED_KEY_LENGTH = 8192
 MAX_VARIABLE_ENTRIES = 256
@@ -29,6 +31,13 @@ VariableKey = Annotated[str, Field(max_length=MAX_VARIABLE_KEY_LENGTH)]
 VariableValue = Annotated[str, Field(max_length=MAX_VARIABLE_VALUE_LENGTH)]
 AuthorizedKey = Annotated[str, Field(max_length=MAX_AUTHORIZED_KEY_LENGTH)]
 
+# INSTANCE and PROGRAM messages carry tags inside the ``metadata`` dict
+# (legacy location). When the ``tags`` key is present it must match the
+# canonical Tag list shape.
+_METADATA_TAGS_ADAPTER: TypeAdapter = TypeAdapter(
+    Annotated[List[Tag], Field(max_length=MAX_N_TAGS)]
+)
+
 
 class BaseExecutableContent(HashableModel, BaseContent, ABC):
     """Abstract content for execution messages (Instances, Programs)."""
@@ -37,7 +46,11 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
     metadata: Optional[Dict[str, Any]] = Field(
         default=None,
         max_length=MAX_METADATA_ENTRIES,
-        description="Metadata of the VM",
+        description=(
+            "Metadata of the VM. Values must be scalars (str, int, float, "
+            "bool, null) except for the optional 'tags' key, which holds a "
+            "list of tag strings."
+        ),
     )
     authorized_keys: Optional[List[AuthorizedKey]] = Field(
         default=None,
@@ -67,6 +80,37 @@ class BaseExecutableContent(HashableModel, BaseContent, ABC):
         max_length=MAX_REPLACES_LENGTH,
         description="Previous version to replace. Must be signed by the same address",
     )
+
+    @field_validator("metadata")
+    def check_metadata(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if v is None:
+            return v
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(
+                    f"metadata keys must be strings, got {type(key).__name__}"
+                )
+            if len(key) > MAX_METADATA_KEY_LENGTH:
+                raise ValueError(
+                    f"metadata key {key!r} exceeds {MAX_METADATA_KEY_LENGTH} chars"
+                )
+            if key == "tags":
+                _METADATA_TAGS_ADAPTER.validate_python(value)
+                continue
+            if value is None or isinstance(value, (bool, int, float)):
+                continue
+            if isinstance(value, str):
+                if len(value) > MAX_METADATA_VALUE_LENGTH:
+                    raise ValueError(
+                        f"metadata value at {key!r} exceeds "
+                        f"{MAX_METADATA_VALUE_LENGTH} chars"
+                    )
+                continue
+            raise ValueError(
+                f"metadata value at {key!r} must be a scalar "
+                f"(str, int, float, bool, or null); got {type(value).__name__}"
+            )
+        return v
 
     @property
     def gpu_requirements(self) -> Sequence[GpuProperties]:

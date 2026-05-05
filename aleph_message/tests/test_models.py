@@ -3,6 +3,7 @@ import os.path
 from os import listdir
 from os.path import isdir, join
 from pathlib import Path
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -32,10 +33,13 @@ from aleph_message.models import (
     create_new_message,
     parse_message,
 )
+from aleph_message.models.abstract import MAX_N_TAGS, MAX_TAG_LENGTH
 from aleph_message.models.execution.abstract import (
     MAX_AUTHORIZED_KEY_LENGTH,
     MAX_AUTHORIZED_KEYS,
     MAX_METADATA_ENTRIES,
+    MAX_METADATA_KEY_LENGTH,
+    MAX_METADATA_VALUE_LENGTH,
     MAX_REPLACES_LENGTH,
     MAX_VARIABLE_ENTRIES,
     MAX_VARIABLE_KEY_LENGTH,
@@ -816,3 +820,280 @@ def test_volume_label_length_boundary():
             size_mib=1,
             comment="c" * (MAX_VOLUME_LABEL_LENGTH + 1),
         )
+
+
+# --- StoreContent.tags ------------------------------------------------------
+
+
+def _make_store_content(**overrides: Any) -> StoreContent:
+    fields: Dict[str, Any] = {
+        "address": "0x1",
+        "time": 1.0,
+        "item_type": ItemType.storage,
+        "item_hash": "QmTcwT8K6q7Te7yYG4UXKx3ujkqSpFZmsVWjvB3vHvXgwK",
+    }
+    fields.update(overrides)
+    return StoreContent.model_validate(fields)
+
+
+def test_store_tags_basic():
+    content = _make_store_content(tags=["alpha", "beta"])
+    assert content.tags == ["alpha", "beta"]
+
+
+def test_store_tags_default_none_excluded_from_serialization():
+    # Hash compatibility: when ``tags`` is unset it must not appear in the
+    # serialized form, otherwise existing item_hash values would no longer
+    # reproduce.
+    content = _make_store_content()
+    assert "tags" not in content.model_dump(exclude_none=True)
+
+
+def test_store_tags_count_boundary():
+    _make_store_content(tags=[f"t{i}" for i in range(MAX_N_TAGS)])
+    with pytest.raises(ValidationError):
+        _make_store_content(tags=[f"t{i}" for i in range(MAX_N_TAGS + 1)])
+
+
+def test_store_tags_length_boundary():
+    _make_store_content(tags=["a" * MAX_TAG_LENGTH])
+    with pytest.raises(ValidationError):
+        _make_store_content(tags=["a" * (MAX_TAG_LENGTH + 1)])
+
+
+def test_store_tags_rejects_empty_string():
+    with pytest.raises(ValidationError):
+        _make_store_content(tags=[""])
+
+
+# --- PostContent / AggregateContent: nested ``content.tags`` ----------------
+
+
+def test_post_nested_tags_valid():
+    content = PostContent(
+        type="custom",
+        address="0x1",
+        time=1.0,
+        content={"hello": "world", "tags": ["alpha", "beta"]},
+    )
+    assert content.content["tags"] == ["alpha", "beta"]
+
+
+def test_post_nested_tags_null_allowed():
+    # An explicit ``"tags": null`` is permitted (treated as "no tags").
+    PostContent(
+        type="custom",
+        address="0x1",
+        time=1.0,
+        content={"hello": "world", "tags": None},
+    )
+
+
+def test_post_nested_tags_count_boundary():
+    PostContent(
+        type="custom",
+        address="0x1",
+        time=1.0,
+        content={"tags": [f"t{i}" for i in range(MAX_N_TAGS)]},
+    )
+    with pytest.raises(ValidationError):
+        PostContent(
+            type="custom",
+            address="0x1",
+            time=1.0,
+            content={"tags": [f"t{i}" for i in range(MAX_N_TAGS + 1)]},
+        )
+
+
+def test_post_nested_tags_length_boundary():
+    PostContent(
+        type="custom",
+        address="0x1",
+        time=1.0,
+        content={"tags": ["a" * MAX_TAG_LENGTH]},
+    )
+    with pytest.raises(ValidationError):
+        PostContent(
+            type="custom",
+            address="0x1",
+            time=1.0,
+            content={"tags": ["a" * (MAX_TAG_LENGTH + 1)]},
+        )
+
+
+def test_post_nested_tags_rejects_non_list():
+    with pytest.raises(ValidationError):
+        PostContent(
+            type="custom",
+            address="0x1",
+            time=1.0,
+            content={"tags": "not-a-list"},
+        )
+
+
+def test_post_nested_tags_rejects_non_string_entry():
+    with pytest.raises(ValidationError):
+        PostContent(
+            type="custom",
+            address="0x1",
+            time=1.0,
+            content={"tags": ["ok", 42]},
+        )
+
+
+def test_post_top_level_tags_rejected():
+    # ``tags`` is not a top-level field on PostContent. Posts must use the
+    # nested ``content.tags`` location.
+    with pytest.raises(ValidationError):
+        PostContent(
+            type="custom",
+            address="0x1",
+            time=1.0,
+            content={"hello": "world"},
+            tags=["alpha"],
+        )
+
+
+def test_post_non_dict_content_unaffected():
+    # ``content`` may be any JSON-serializable value, not only dicts; the
+    # nested-tags check is a no-op when ``content`` isn't a dict.
+    content = PostContent(
+        type="custom",
+        address="0x1",
+        time=1.0,
+        content="just-a-string",
+    )
+    assert content.content == "just-a-string"
+
+
+def test_aggregate_nested_tags_valid():
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "AGGREGATE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": "1625652287.017",
+            "key": "my-aggregate",
+            "content": {"tags": ["agg-a", "agg-b"], "other_field": 1},
+        },
+        "signature": "0x123456789",
+    }
+    msg = create_new_message(message_dict, factory=AggregateMessage)
+    assert msg.content.content["tags"] == ["agg-a", "agg-b"]
+
+
+def test_aggregate_nested_tags_invalid_rejected():
+    message_dict = {
+        "chain": "ETH",
+        "sender": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+        "type": "AGGREGATE",
+        "time": "1625652287.017",
+        "item_type": "inline",
+        "content": {
+            "address": "0x101d8D16372dBf5f1614adaE95Ee5CCE61998Fc9",
+            "time": "1625652287.017",
+            "key": "my-aggregate",
+            "content": {"tags": [42, None]},
+        },
+        "signature": "0x123456789",
+    }
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=AggregateMessage)
+
+
+# --- BaseExecutableContent.metadata -----------------------------------------
+
+
+def test_metadata_tags_valid():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"tags": ["alpha", "beta"]}
+    msg = create_new_message(message_dict, factory=InstanceMessage)
+    assert msg.content.metadata == {"tags": ["alpha", "beta"]}
+
+
+def test_metadata_tags_count_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"tags": [f"t{i}" for i in range(MAX_N_TAGS)]}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["metadata"] = {
+        "tags": [f"t{i}" for i in range(MAX_N_TAGS + 1)]
+    }
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_tags_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"tags": ["a" * MAX_TAG_LENGTH]}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["metadata"] = {"tags": ["a" * (MAX_TAG_LENGTH + 1)]}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_tags_rejects_empty_string():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"tags": [""]}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_scalar_values_accepted():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {
+        "name": "vm-1",
+        "size": 4,
+        "ratio": 0.5,
+        "active": True,
+        "note": None,
+    }
+    create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_rejects_dict_value():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"foo": {"nested": "object"}}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_rejects_list_value_under_non_tags_key():
+    # Lists are only allowed under the ``tags`` key.
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"foo": ["a", "b"]}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_key_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"a" * MAX_METADATA_KEY_LENGTH: "v"}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["metadata"] = {"a" * (MAX_METADATA_KEY_LENGTH + 1): "v"}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_metadata_value_length_boundary():
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["metadata"] = {"k": "v" * MAX_METADATA_VALUE_LENGTH}
+    create_new_message(message_dict, factory=InstanceMessage)
+
+    message_dict["content"]["metadata"] = {"k": "v" * (MAX_METADATA_VALUE_LENGTH + 1)}
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_instance_top_level_tags_rejected():
+    # ``tags`` is not a top-level field on InstanceContent. Instances must use
+    # the ``content.metadata.tags`` location.
+    message_dict = _load_instance_fixture()
+    message_dict["content"]["tags"] = ["alpha"]
+    with pytest.raises(ValidationError):
+        create_new_message(message_dict, factory=InstanceMessage)
