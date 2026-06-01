@@ -42,15 +42,20 @@ class InstanceContent(BaseExecutableContent):
     @model_validator(mode="after")
     def check_requirements(self) -> Self:
         if self.requirements:
-            if (
-                self.payment and (self.payment.is_stream or self.payment.is_credit)
-            ) and (not self.requirements.node or not self.requirements.node.node_hash):
-                raise ValueError(
-                    "Node hash assignment is needed for PAYG or Credit payments"
-                )
-            # GPU filter only supported for QEmu instances with node_hash assigned
+            # Streamed (PAYG) payments must target a specific node. Credit
+            # payments are billed independently of the host, so they no longer
+            # need to pin a node.
+            if (self.payment and self.payment.is_stream) and (
+                not self.requirements.node or not self.requirements.node.node_hash
+            ):
+                raise ValueError("Node hash assignment is needed for PAYG payments")
+            # GPU filter only supported for QEmu instances. The GPU host must be
+            # pinned with a node_hash, except for credit payments which are not
+            # tied to a specific node.
             if self.requirements.gpu:
-                if not self.requirements.node or not self.requirements.node.node_hash:
+                if not (self.payment and self.payment.is_credit) and (
+                    not self.requirements.node or not self.requirements.node.node_hash
+                ):
                     raise ValueError("Node hash assignment is needed for GPU support")
 
                 if (
