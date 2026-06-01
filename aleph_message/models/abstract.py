@@ -1,8 +1,18 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # Unix timestamp upper bound (year 2262). Well below the float-precision
 # cliff at 2**53 while still leaving headroom for any realistic message.
 MAX_CONTENT_TIME = 9_223_372_036.0
+
+# Maximum number of tags per message.
+MAX_N_TAGS = 16
+# Maximum length of a tag. Real-world tags in production reach ~200 chars,
+# so the cap is set to 256 for backward compatibility.
+MAX_TAG_LENGTH = 256
+
+Tag = Annotated[str, StringConstraints(min_length=1, max_length=MAX_TAG_LENGTH)]
 
 
 def hashable(obj):
