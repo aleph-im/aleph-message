@@ -13,6 +13,9 @@ _BASE58BTC = frozenset("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwx
 # Base32 (RFC 4648, lowercase, no padding), the encoding used by the
 # `bafy` CIDv1 prefix.
 _BASE32_LOWER = frozenset("abcdefghijklmnopqrstuvwxyz234567")
+# Base36 (lowercase), the encoding used by the `k51` CIDv1 libp2p-key
+# prefix of Ed25519 IPNS names.
+_BASE36_LOWER = frozenset("0123456789abcdefghijklmnopqrstuvwxyz")
 
 
 class ItemType(str, Enum):
@@ -21,6 +24,7 @@ class ItemType(str, Enum):
     inline = "inline"
     storage = "storage"
     ipfs = "ipfs"
+    ipns = "ipns"
 
     @classmethod
     @lru_cache
@@ -38,6 +42,16 @@ class ItemType(str, Enum):
             and _BASE32_LOWER.issuperset(item_hash[4:])
         ):
             return cls.ipfs
+        # IPNS names are CIDv1 with the libp2p-key multicodec. The leading
+        # bytes of Ed25519 names are fixed, so the canonical base36 form is
+        # always 62 chars starting with "k51". RSA-based legacy names look
+        # like file CIDs and are deliberately not supported.
+        if (
+            item_hash.startswith("k51")
+            and len(item_hash) == 62
+            and _BASE36_LOWER.issuperset(item_hash[3:])
+        ):
+            return cls.ipns
         if len(item_hash) == 64 and _HEX_LOWER.issuperset(item_hash):
             return cls.storage
         raise UnknownHashError(f"Could not determine hash type: '{item_hash}'")
