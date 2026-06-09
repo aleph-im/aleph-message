@@ -229,6 +229,8 @@ class StoreContent(BaseContent):
                     "the IPNS name is the stable identifier"
                 )
             if self.ipns_record is not None:
+                if not self.ipns_record:
+                    raise ValueError("ipns_record must not be empty")
                 try:
                     record = base64.b64decode(self.ipns_record, validate=True)
                 except binascii.Error as e:

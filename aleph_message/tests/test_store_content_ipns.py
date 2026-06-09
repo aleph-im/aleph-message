@@ -79,3 +79,13 @@ def test_plain_store_unaffected():
     )
     assert content.ipns_record is None
     assert content.max_size_mib is None
+
+
+def test_ipns_record_must_not_be_empty():
+    with pytest.raises(ValidationError, match="empty"):
+        _ipns_content(ipns_record="")
+
+
+def test_max_size_mib_must_be_positive():
+    with pytest.raises(ValidationError):
+        _ipns_content(max_size_mib=0)
