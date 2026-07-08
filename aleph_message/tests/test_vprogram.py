@@ -3,9 +3,18 @@
 Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 """
 
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
+from aleph_message.models import (
+    VerifiableProgramMessage,
+    add_item_content_and_hash,
+    create_message_from_file,
+    parse_message,
+)
 from aleph_message.models.base import MessageType
 from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
@@ -187,3 +196,22 @@ def test_vprogram_content_node_hash_is_optional():
         make_vprogram_content(requirements={"node": {"node_hash": ITEM_HASH}})
     )
     assert content.requirements.node.node_hash == ITEM_HASH
+
+
+def test_vprogram_message_machine():
+    path = Path(__file__).parent / "messages/vprogram_machine.json"
+    message = create_message_from_file(path, factory=VerifiableProgramMessage)
+    assert isinstance(message, VerifiableProgramMessage)
+    assert message.type == "V-PROGRAM"
+    assert message.content.is_confidential
+    assert hash(message.content)
+    # the factory-less path must dispatch to the same class
+    assert isinstance(create_message_from_file(path), VerifiableProgramMessage)
+
+
+def test_parse_message_dispatches_v_program():
+    path = Path(__file__).parent / "messages/vprogram_machine.json"
+    message_dict = json.loads(path.read_text())
+    add_item_content_and_hash(message_dict, inplace=True)
+    message = parse_message(message_dict)
+    assert isinstance(message, VerifiableProgramMessage)
