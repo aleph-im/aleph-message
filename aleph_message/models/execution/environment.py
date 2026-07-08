@@ -162,6 +162,73 @@ class AMDSEVPolicy(int, Enum):
     SEV = 0b100000  # The guest must not be transmitted to another platform that is not SEV capable
 
 
+# SEV-SNP guest policy (64-bit). Bit 17 is reserved and must be 1; 0x30000
+# also sets bit 16 (SMT allowed), the recommended default.
+SNP_POLICY_RESERVED_BIT_17 = 1 << 17
+DEFAULT_SNP_POLICY = 0x30000
+MAX_VCPU_TYPE_LENGTH = 64
+
+
+def validate_snp_policy(policy: int) -> None:
+    """Raise ValueError if the value is not a plausible SEV-SNP guest policy."""
+    if not policy & SNP_POLICY_RESERVED_BIT_17:
+        raise ValueError(
+            "SEV-SNP guest policy must have reserved bit 17 set "
+            f"(e.g. {DEFAULT_SNP_POLICY:#x}); got {policy:#x}. "
+            "Note that SEV policy bit semantics do not apply to SEV-SNP."
+        )
+
+
+class TeePlatform(str, Enum):
+    """TEE platforms with a defined launch-measurement semantics.
+
+    Grows over protocol upgrades (e.g. "tdx" with MRTD digests). Unknown
+    platforms are schema-invalid: nothing unverifiable gets network blessing.
+    """
+
+    sev_snp = "sev_snp"
+
+
+# Expected hex length of a launch digest, per platform.
+# sev_snp: 48-byte SHA-384 launch digest.
+_DIGEST_HEX_LENGTHS = {TeePlatform.sev_snp: 96}
+
+
+class LaunchMeasurement(HashableModel):
+    """Supervisor-opaque verification annotation, validated by the CCN.
+
+    Declares the launch digest a verifier should expect. Multiple entries
+    (one per vcpu_type) keep a message verifiable across a mixed CPU fleet.
+    """
+
+    platform: TeePlatform
+    digest: str = Field(
+        pattern=r"^[0-9a-f]+$",
+        max_length=128,
+        description="Expected launch digest, lowercase hex; length is platform-defined",
+    )
+    vcpu_type: Optional[str] = Field(
+        default=None,
+        max_length=MAX_VCPU_TYPE_LENGTH,
+        description=(
+            "QEMU CPU model this digest was computed for (e.g. 'EPYC-v4'). "
+            "Required by direct-boot measurement recipes, absent for igvm bundles."
+        ),
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def check_digest_length(self) -> "LaunchMeasurement":
+        expected = _DIGEST_HEX_LENGTHS[self.platform]
+        if len(self.digest) != expected:
+            raise ValueError(
+                f"{self.platform.value} digest must be {expected} hex characters, "
+                f"got {len(self.digest)}"
+            )
+        return self
+
+
 class TrustedExecutionEnvironment(HashableModel):
     """Trusted Execution Environment properties."""
 
