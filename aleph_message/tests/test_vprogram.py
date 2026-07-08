@@ -13,6 +13,12 @@ from aleph_message.models.execution.environment import (
     TeePlatform,
     validate_snp_policy,
 )
+from aleph_message.models.execution.vprogram import (
+    ConfidentialRuntime,
+    TeeVerification,
+    VerifiableProgramEnvironment,
+    VerifiedWorkload,
+)
 
 SNP_DIGEST = "ab" * 48  # 96 hex chars, 48 bytes
 SHA256_HEX = "cd" * 32  # 64 hex chars
@@ -64,13 +70,6 @@ def test_validate_snp_policy():
     with pytest.raises(ValueError):
         validate_snp_policy(0x10000)  # SMT bit alone, no bit 17
 
-
-from aleph_message.models.execution.vprogram import (
-    ConfidentialRuntime,
-    TeeVerification,
-    VerifiableProgramEnvironment,
-    VerifiedWorkload,
-)
 
 ITEM_HASH = "cafe" * 16  # 64 hex chars, valid storage ItemHash
 
