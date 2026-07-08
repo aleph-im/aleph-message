@@ -63,3 +63,57 @@ def test_validate_snp_policy():
         validate_snp_policy(0x1)  # the AMD SEV default lacks bit 17
     with pytest.raises(ValueError):
         validate_snp_policy(0x10000)  # SMT bit alone, no bit 17
+
+
+from aleph_message.models.execution.vprogram import (
+    ConfidentialRuntime,
+    TeeVerification,
+    VerifiableProgramEnvironment,
+    VerifiedWorkload,
+)
+
+ITEM_HASH = "cafe" * 16  # 64 hex chars, valid storage ItemHash
+
+
+def test_confidential_runtime():
+    r = ConfidentialRuntime(ref=ITEM_HASH, comment="compose-runner snp bundle")
+    assert r.ref == ITEM_HASH
+    # no use_latest field exists: measurements pin exact artifacts
+    assert "use_latest" not in ConfidentialRuntime.model_fields
+
+
+def test_verified_workload_roothash_validation():
+    w = VerifiedWorkload(ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="cd" * 32)
+    assert w.roothash == "cd" * 32
+    with pytest.raises(ValidationError):
+        VerifiedWorkload(ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="cd" * 31)
+    with pytest.raises(ValidationError):
+        VerifiedWorkload(ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="ZZ" * 32)
+
+
+def test_tee_verification_defaults_and_policy():
+    v = TeeVerification(
+        backend="sev_snp",
+        measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+    )
+    assert v.policy == 0x30000
+    with pytest.raises(ValidationError):
+        # SEV-style policy value is invalid for SNP (bit 17 unset)
+        TeeVerification(
+            backend="sev_snp",
+            policy=0x1,
+            measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+        )
+
+
+def test_tee_verification_requires_measurements():
+    with pytest.raises(ValidationError):
+        TeeVerification(backend="sev_snp", measurements=[])
+
+
+def test_vprogram_environment_defaults():
+    env = VerifiableProgramEnvironment()
+    assert env.internet is False
+    assert env.aleph_api is False
+    with pytest.raises(ValidationError):
+        VerifiableProgramEnvironment(hypervisor="qemu")  # extra fields forbidden
