@@ -233,7 +233,10 @@ def make_snp_tee(**overrides) -> dict:
 def test_trusted_execution_legacy_sev_unchanged():
     # the exact shape of the existing confidential fixture must keep parsing
     tee = TrustedExecutionEnvironment.model_validate(
-        {"policy": 1, "firmware": "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"}
+        {
+            "policy": 1,
+            "firmware": "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317",
+        }
     )
     assert tee.mode is None  # None means legacy SEV
     assert tee.is_snp is False
@@ -260,7 +263,9 @@ def test_trusted_execution_snp_requires_fields():
 def test_trusted_execution_snp_forbids_firmware():
     with pytest.raises(ValidationError, match="firmware"):
         TrustedExecutionEnvironment.model_validate(
-            make_snp_tee(firmware="e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317")
+            make_snp_tee(
+                firmware="e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"
+            )
         )
 
 

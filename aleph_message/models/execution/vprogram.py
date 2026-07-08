@@ -31,9 +31,7 @@ class ConfidentialRuntime(HashableModel):
     exact artifacts, so the reference must be immutable.
     """
 
-    ref: ItemHash = Field(
-        description="Store message of the measured runtime bundle"
-    )
+    ref: ItemHash = Field(description="Store message of the measured runtime bundle")
     comment: str = Field(default="", max_length=MAX_RUNTIME_COMMENT_LENGTH)
 
     model_config = ConfigDict(extra="forbid")
@@ -58,9 +56,7 @@ class VerifiedWorkload(HashableModel):
 class TeeVerification(HashableModel):
     """TEE launch configuration plus supervisor-opaque measurement annotations."""
 
-    backend: Literal["sev_snp"] = Field(
-        description="TEE backend the VM launches with"
-    )
+    backend: Literal["sev_snp"] = Field(description="TEE backend the VM launches with")
     policy: int = Field(
         default=DEFAULT_SNP_POLICY,
         ge=0,
@@ -103,10 +99,11 @@ class VerifiableProgramContent(BaseExecutableContent):
     neither measured nor verity-verified.
     """
 
-    payment: Payment = Field(
-        description="Payment details; V-Programs are credit-only"
-    )
-    environment: VerifiableProgramEnvironment = Field(
+    payment: Payment = Field(description="Payment details; V-Programs are credit-only")
+    # VerifiableProgramEnvironment is deliberately not a member of the
+    # Function/InstanceEnvironment union on BaseExecutableContent: V-Programs
+    # have their own environment shape (see class docstring above).
+    environment: VerifiableProgramEnvironment = Field(  # type: ignore[assignment]
         description="Properties of the execution environment"
     )
     runtime: ConfidentialRuntime = Field(

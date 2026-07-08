@@ -297,9 +297,7 @@ class TrustedExecutionEnvironment(HashableModel):
         else:
             for field_name in ("runtime", "measurements", "attestation_port"):
                 if getattr(self, field_name) is not None:
-                    raise ValueError(
-                        f"{field_name} is only valid in sev_snp mode"
-                    )
+                    raise ValueError(f"{field_name} is only valid in sev_snp mode")
         return self
 
 
