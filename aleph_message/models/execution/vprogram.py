@@ -88,3 +88,56 @@ class VerifiableProgramEnvironment(HashableModel):
     aleph_api: bool = False
 
     model_config = ConfigDict(extra="forbid")
+
+
+class VerifiableProgramContent(BaseExecutableContent):
+    """Message content for scheduling a verifiable program (V-Program): an
+    auto-booting SEV-SNP VM whose full software stack is attestable.
+
+    Unlike classic programs there is no code/entrypoint/triggers model (the
+    workload contract belongs to the runtime bundle) and no hypervisor choice
+    (always QEMU). Unlike instances, the rootfs is Aleph-provided and measured;
+    the user contribution is the verity-bound workload volume.
+
+    Extra `volumes` are allowed but are OUTSIDE the attested TCB: they are
+    neither measured nor verity-verified.
+    """
+
+    payment: Payment = Field(
+        description="Payment details; V-Programs are credit-only"
+    )
+    environment: VerifiableProgramEnvironment = Field(
+        description="Properties of the execution environment"
+    )
+    runtime: ConfidentialRuntime = Field(
+        description="The measured platform (runtime bundle)"
+    )
+    workload: VerifiedWorkload = Field(
+        description="The user's verity-bound workload volume"
+    )
+    verification: TeeVerification = Field(
+        description="TEE launch config and expected launch measurements"
+    )
+    attestation_port: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=65535,
+        description=(
+            "In-guest attestation port; None means the runtime bundle's "
+            "declared default (8443). Plumbed through the measured cmdline."
+        ),
+    )
+
+    @property
+    def is_confidential(self) -> bool:
+        """V-Programs always run in a confidential VM."""
+        return True
+
+    @model_validator(mode="after")
+    def check_payment_is_credit(self) -> Self:
+        if not self.payment.is_credit:
+            raise ValueError(
+                "V-Programs are credit-only: holder-tier and PAYG stream "
+                "payments are not supported"
+            )
+        return self

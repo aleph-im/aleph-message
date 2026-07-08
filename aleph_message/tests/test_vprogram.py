@@ -16,6 +16,7 @@ from aleph_message.models.execution.environment import (
 from aleph_message.models.execution.vprogram import (
     ConfidentialRuntime,
     TeeVerification,
+    VerifiableProgramContent,
     VerifiableProgramEnvironment,
     VerifiedWorkload,
 )
@@ -116,3 +117,73 @@ def test_vprogram_environment_defaults():
     assert env.aleph_api is False
     with pytest.raises(ValidationError):
         VerifiableProgramEnvironment(hypervisor="qemu")  # extra fields forbidden
+
+
+def make_vprogram_content(**overrides) -> dict:
+    """Minimal valid VerifiableProgramContent as a dict."""
+    content = {
+        "address": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
+        "time": 1719502000.0,
+        "allow_amend": False,
+        "payment": {"type": "credit"},
+        "environment": {"internet": True, "aleph_api": False},
+        "resources": {"vcpus": 2, "memory": 2048, "seconds": 30},
+        "runtime": {"ref": ITEM_HASH, "comment": "compose-runner snp bundle"},
+        "workload": {
+            "ref": ITEM_HASH,
+            "hash_tree": ITEM_HASH,
+            "roothash": "cd" * 32,
+        },
+        "verification": {
+            "backend": "sev_snp",
+            "policy": 0x30000,
+            "measurements": [
+                {"platform": "sev_snp", "digest": SNP_DIGEST, "vcpu_type": "EPYC-v4"}
+            ],
+        },
+    }
+    content.update(overrides)
+    return content
+
+
+def test_vprogram_content_valid():
+    content = VerifiableProgramContent.model_validate(make_vprogram_content())
+    assert content.payment.is_credit
+    assert content.is_confidential is True
+    assert content.attestation_port is None  # bundle default (8443)
+    assert content.verification.measurements[0].vcpu_type == "EPYC-v4"
+
+
+def test_vprogram_content_is_credit_only():
+    for payment_type in ("hold", "superfluid"):
+        with pytest.raises(ValidationError, match="credit"):
+            VerifiableProgramContent.model_validate(
+                make_vprogram_content(payment={"type": payment_type})
+            )
+
+
+def test_vprogram_content_payment_required():
+    content = make_vprogram_content()
+    del content["payment"]
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(content)
+
+
+def test_vprogram_content_attestation_port_bounds():
+    ok = VerifiableProgramContent.model_validate(
+        make_vprogram_content(attestation_port=8443)
+    )
+    assert ok.attestation_port == 8443
+    for bad_port in (0, 65536):
+        with pytest.raises(ValidationError):
+            VerifiableProgramContent.model_validate(
+                make_vprogram_content(attestation_port=bad_port)
+            )
+
+
+def test_vprogram_content_node_hash_is_optional():
+    # dispatch is scheduler-driven; node_hash is only an optional placement pin
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(requirements={"node": {"node_hash": ITEM_HASH}})
+    )
+    assert content.requirements.node.node_hash == ITEM_HASH
