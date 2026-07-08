@@ -171,10 +171,11 @@ MAX_VCPU_TYPE_LENGTH = 64
 
 def validate_snp_policy(policy: int) -> None:
     """Raise ValueError if the value is not a plausible SEV-SNP guest policy."""
-    if not policy & SNP_POLICY_RESERVED_BIT_17:
+    policy_int = int(policy)
+    if not policy_int & SNP_POLICY_RESERVED_BIT_17:
         raise ValueError(
             "SEV-SNP guest policy must have reserved bit 17 set "
-            f"(e.g. {DEFAULT_SNP_POLICY:#x}); got {policy:#x}. "
+            f"(e.g. {DEFAULT_SNP_POLICY:#x}); got {policy_int:#x}. "
             "Note that SEV policy bit semantics do not apply to SEV-SNP."
         )
 
@@ -230,17 +231,76 @@ class LaunchMeasurement(HashableModel):
 
 
 class TrustedExecutionEnvironment(HashableModel):
-    """Trusted Execution Environment properties."""
+    """Trusted Execution Environment properties.
+
+    Two modes coexist:
+    - mode None or "sev" (legacy): AMD SEV/SEV-ES with the CRN-mediated
+      launch-secret flow; `firmware` references the confidential OVMF and
+      `policy` uses AMD SEV bit semantics (AMDSEVPolicy).
+    - mode "sev_snp": measured boot from a runtime bundle with direct
+      client-to-guest attestation; `policy` uses SEV-SNP 64-bit semantics
+      and `measurements` carry the expected launch digests.
+    """
 
     firmware: Optional[ItemHash] = Field(
-        default=None, description="Confidential OVMF firmware to use"
+        default=None, description="Confidential OVMF firmware to use (SEV mode only)"
     )
     policy: int = Field(
         default=AMDSEVPolicy.NO_DBG,
-        description="Policy of the TEE. Default value is 0x01 for SEV without debugging.",
+        description=(
+            "Policy of the TEE. SEV bit semantics in SEV mode (default 0x01, "
+            "no debugging); SEV-SNP 64-bit guest policy in sev_snp mode."
+        ),
+    )
+    mode: Optional[Literal["sev", "sev_snp"]] = Field(
+        default=None,
+        description="TEE mode; None means legacy SEV (kept for wire stability)",
+    )
+    runtime: Optional[ItemHash] = Field(
+        default=None,
+        description="Measured runtime bundle store message (sev_snp mode only)",
+    )
+    measurements: Optional[List[LaunchMeasurement]] = Field(
+        default=None,
+        max_length=16,
+        description="Expected launch digests (sev_snp mode only); CCN-validated",
+    )
+    attestation_port: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=65535,
+        description=(
+            "In-guest attestation port (sev_snp mode only); None means the "
+            "runtime bundle default (8443)"
+        ),
     )
 
     model_config = ConfigDict(extra="forbid")
+
+    @property
+    def is_snp(self) -> bool:
+        return self.mode == "sev_snp"
+
+    @model_validator(mode="after")
+    def check_mode_consistency(self) -> "TrustedExecutionEnvironment":
+        if self.is_snp:
+            if self.firmware is not None:
+                raise ValueError(
+                    "firmware belongs to the SEV flow and must not be set in "
+                    "sev_snp mode; use runtime instead"
+                )
+            if self.runtime is None:
+                raise ValueError("sev_snp mode requires runtime")
+            if not self.measurements:
+                raise ValueError("sev_snp mode requires measurements")
+            validate_snp_policy(self.policy)
+        else:
+            for field_name in ("runtime", "measurements", "attestation_port"):
+                if getattr(self, field_name) is not None:
+                    raise ValueError(
+                        f"{field_name} is only valid in sev_snp mode"
+                    )
+        return self
 
 
 class InstanceEnvironment(HashableModel):

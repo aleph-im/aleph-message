@@ -20,6 +20,7 @@ from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
     LaunchMeasurement,
     TeePlatform,
+    TrustedExecutionEnvironment,
     validate_snp_policy,
 )
 from aleph_message.models.execution.vprogram import (
@@ -215,3 +216,67 @@ def test_parse_message_dispatches_v_program():
     add_item_content_and_hash(message_dict, inplace=True)
     message = parse_message(message_dict)
     assert isinstance(message, VerifiableProgramMessage)
+
+
+def make_snp_tee(**overrides) -> dict:
+    tee = {
+        "mode": "sev_snp",
+        "policy": 0x30000,
+        "runtime": ITEM_HASH,
+        "measurements": [{"platform": "sev_snp", "digest": SNP_DIGEST}],
+    }
+    tee.update(overrides)
+    return tee
+
+
+def test_trusted_execution_legacy_sev_unchanged():
+    # the exact shape of the existing confidential fixture must keep parsing
+    tee = TrustedExecutionEnvironment.model_validate(
+        {"policy": 1, "firmware": "e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317"}
+    )
+    assert tee.mode is None  # None means legacy SEV
+    assert tee.is_snp is False
+    # dump stability: no new keys appear on legacy content
+    dump = tee.model_dump(exclude_none=True)
+    assert set(dump) == {"policy", "firmware"}
+
+
+def test_trusted_execution_snp_valid():
+    tee = TrustedExecutionEnvironment.model_validate(make_snp_tee())
+    assert tee.is_snp is True
+    assert tee.runtime == ITEM_HASH
+    assert tee.measurements[0].platform is TeePlatform.sev_snp
+
+
+def test_trusted_execution_snp_requires_fields():
+    for missing in ("runtime", "measurements"):
+        tee = make_snp_tee()
+        del tee[missing]
+        with pytest.raises(ValidationError, match=missing):
+            TrustedExecutionEnvironment.model_validate(tee)
+
+
+def test_trusted_execution_snp_forbids_firmware():
+    with pytest.raises(ValidationError, match="firmware"):
+        TrustedExecutionEnvironment.model_validate(
+            make_snp_tee(firmware="e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317")
+        )
+
+
+def test_trusted_execution_snp_policy_bit17():
+    # the implicit SEV default (0x1) is not a valid SNP policy: an explicit,
+    # SNP-valid policy is effectively required in sev_snp mode
+    tee = make_snp_tee()
+    del tee["policy"]
+    with pytest.raises(ValidationError, match="bit 17"):
+        TrustedExecutionEnvironment.model_validate(tee)
+
+
+def test_trusted_execution_sev_forbids_snp_fields():
+    for extra in (
+        {"runtime": ITEM_HASH},
+        {"measurements": [{"platform": "sev_snp", "digest": SNP_DIGEST}]},
+        {"attestation_port": 8443},
+    ):
+        with pytest.raises(ValidationError, match="sev_snp"):
+            TrustedExecutionEnvironment.model_validate({"policy": 1, **extra})
