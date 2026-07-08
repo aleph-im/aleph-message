@@ -53,4 +53,5 @@ class MessageType(str, Enum):
     store = "STORE"
     program = "PROGRAM"
     instance = "INSTANCE"
+    v_program = "V-PROGRAM"
     forget = "FORGET"
