@@ -80,3 +80,16 @@ class InstanceContent(BaseExecutableContent):
                     )
 
         return self
+
+    @model_validator(mode="after")
+    def check_snp_payment(self) -> Self:
+        # SEV-SNP confidential instances are credit-only (see the confidential
+        # VM protocol design, aleph-vm docs/plans/2026-07-08).
+        trusted_execution = self.environment.trusted_execution
+        if trusted_execution is not None and trusted_execution.is_snp:
+            if not (self.payment and self.payment.is_credit):
+                raise ValueError(
+                    "SEV-SNP confidential instances are credit-only: "
+                    "holder-tier and PAYG stream payments are not supported"
+                )
+        return self

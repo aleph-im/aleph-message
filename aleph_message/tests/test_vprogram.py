@@ -23,6 +23,7 @@ from aleph_message.models.execution.environment import (
     TrustedExecutionEnvironment,
     validate_snp_policy,
 )
+from aleph_message.models.execution.instance import InstanceContent
 from aleph_message.models.execution.vprogram import (
     ConfidentialRuntime,
     TeeVerification,
@@ -280,3 +281,51 @@ def test_trusted_execution_sev_forbids_snp_fields():
     ):
         with pytest.raises(ValidationError, match="sev_snp"):
             TrustedExecutionEnvironment.model_validate({"policy": 1, **extra})
+
+
+def make_snp_instance_content(payment: dict) -> dict:
+    return {
+        "address": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
+        "time": 1719502000.0,
+        "allow_amend": False,
+        "payment": payment,
+        "environment": {
+            "internet": True,
+            "aleph_api": False,
+            "hypervisor": "qemu",
+            "trusted_execution": make_snp_tee(),
+        },
+        "resources": {"vcpus": 2, "memory": 2048, "seconds": 30},
+        "rootfs": {
+            "parent": {"ref": ITEM_HASH, "use_latest": False},
+            "persistence": "host",
+            "size_mib": 4096,
+        },
+    }
+
+
+def test_snp_instance_requires_credit_payment():
+    content = InstanceContent.model_validate(
+        make_snp_instance_content(payment={"type": "credit"})
+    )
+    assert content.environment.trusted_execution.is_snp
+
+    with pytest.raises(ValidationError, match="credit"):
+        InstanceContent.model_validate(
+            make_snp_instance_content(payment={"type": "hold"})
+        )
+    with pytest.raises(ValidationError, match="credit"):
+        InstanceContent.model_validate(
+            make_snp_instance_content(payment={"type": "superfluid", "chain": "AVAX"})
+        )
+
+
+def test_legacy_sev_instance_payment_unrestricted():
+    # legacy SEV coco instances keep working with hold payments
+    content_dict = make_snp_instance_content(payment={"type": "hold"})
+    content_dict["environment"]["trusted_execution"] = {
+        "policy": 1,
+        "firmware": ITEM_HASH,
+    }
+    content = InstanceContent.model_validate(content_dict)
+    assert content.environment.trusted_execution.is_snp is False
