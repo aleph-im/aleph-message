@@ -167,11 +167,18 @@ class AMDSEVPolicy(int, Enum):
 SNP_POLICY_RESERVED_BIT_17 = 1 << 17
 DEFAULT_SNP_POLICY = 0x30000
 MAX_VCPU_TYPE_LENGTH = 64
+# Protocol-wide cap on the number of launch measurements a single TEE
+# declaration may carry (one per vcpu_type in the mixed-fleet case).
+MAX_MEASUREMENTS = 16
 
 
 def validate_snp_policy(policy: int) -> None:
     """Raise ValueError if the value is not a plausible SEV-SNP guest policy."""
     policy_int = int(policy)
+    if not 0 <= policy_int < 1 << 64:
+        raise ValueError(
+            f"SEV-SNP guest policy must be an unsigned 64-bit integer; got {policy_int:#x}"
+        )
     if not policy_int & SNP_POLICY_RESERVED_BIT_17:
         raise ValueError(
             "SEV-SNP guest policy must have reserved bit 17 set "
@@ -221,7 +228,11 @@ class LaunchMeasurement(HashableModel):
 
     @model_validator(mode="after")
     def check_digest_length(self) -> "LaunchMeasurement":
-        expected = _DIGEST_HEX_LENGTHS[self.platform]
+        expected = _DIGEST_HEX_LENGTHS.get(self.platform)
+        if expected is None:
+            raise ValueError(
+                f"no digest length defined for platform {self.platform.value}"
+            )
         if len(self.digest) != expected:
             raise ValueError(
                 f"{self.platform.value} digest must be {expected} hex characters, "
@@ -262,7 +273,7 @@ class TrustedExecutionEnvironment(HashableModel):
     )
     measurements: Optional[List[LaunchMeasurement]] = Field(
         default=None,
-        max_length=16,
+        max_length=MAX_MEASUREMENTS,
         description="Expected launch digests (sev_snp mode only); CCN-validated",
     )
     attestation_port: Optional[int] = Field(

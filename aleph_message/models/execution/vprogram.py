@@ -15,10 +15,14 @@ from ..abstract import HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
 from .base import Payment
-from .environment import DEFAULT_SNP_POLICY, LaunchMeasurement, validate_snp_policy
+from .environment import (
+    DEFAULT_SNP_POLICY,
+    MAX_MEASUREMENTS,
+    LaunchMeasurement,
+    validate_snp_policy,
+)
 
 MAX_RUNTIME_COMMENT_LENGTH = 1024
-MAX_MEASUREMENTS = 16
 # sha256 dm-verity root hash, as printed by veritysetup format
 VERITY_ROOTHASH_PATTERN = r"^[0-9a-f]{64}$"
 

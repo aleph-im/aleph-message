@@ -83,6 +83,16 @@ def test_validate_snp_policy():
         validate_snp_policy(0x10000)  # SMT bit alone, no bit 17
 
 
+def test_validate_snp_policy_bounds():
+    # negative values must not slip past the bit-17 check via Python's
+    # arbitrary-precision integer semantics (bit 17 of -1 is "set")
+    with pytest.raises(ValueError):
+        validate_snp_policy(-1)
+    # must fit in an unsigned 64-bit integer
+    with pytest.raises(ValueError):
+        validate_snp_policy((1 << 64) | (1 << 17))
+
+
 ITEM_HASH = "cafe" * 16  # 64 hex chars, valid storage ItemHash
 
 
@@ -120,6 +130,15 @@ def test_tee_verification_defaults_and_policy():
 def test_tee_verification_requires_measurements():
     with pytest.raises(ValidationError):
         TeeVerification(backend="sev_snp", measurements=[])
+
+
+def test_tee_verification_rejects_negative_policy():
+    with pytest.raises(ValidationError):
+        TeeVerification(
+            backend="sev_snp",
+            policy=-1,
+            measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+        )
 
 
 def test_vprogram_environment_defaults():
@@ -178,6 +197,8 @@ def test_vprogram_content_payment_required():
     del content["payment"]
     with pytest.raises(ValidationError):
         VerifiableProgramContent.model_validate(content)
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(make_vprogram_content(payment=None))
 
 
 def test_vprogram_content_attestation_port_bounds():
@@ -276,6 +297,11 @@ def test_trusted_execution_snp_policy_bit17():
     del tee["policy"]
     with pytest.raises(ValidationError, match="bit 17"):
         TrustedExecutionEnvironment.model_validate(tee)
+
+
+def test_trusted_execution_snp_rejects_negative_policy():
+    with pytest.raises(ValidationError):
+        TrustedExecutionEnvironment.model_validate(make_snp_tee(policy=-1))
 
 
 def test_trusted_execution_sev_forbids_snp_fields():
