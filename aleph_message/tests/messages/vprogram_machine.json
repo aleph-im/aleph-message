@@ -42,6 +42,13 @@
                 }
             ]
         },
+        "attestation": [
+            {
+                "protocol": "aleph.ra-tls",
+                "version": 1,
+                "port": 8443
+            }
+        ],
         "volumes": []
     }
 }

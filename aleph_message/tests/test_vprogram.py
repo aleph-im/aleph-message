@@ -25,6 +25,7 @@ from aleph_message.models.execution.environment import (
 )
 from aleph_message.models.execution.instance import InstanceContent
 from aleph_message.models.execution.vprogram import (
+    AttestationProtocol,
     ConfidentialRuntime,
     TeeVerification,
     VerifiableProgramContent,
@@ -171,6 +172,7 @@ def make_vprogram_content(**overrides) -> dict:
                 {"platform": "sev_snp", "digest": SNP_DIGEST, "vcpu_type": "EPYC-v4"}
             ],
         },
+        "attestation": [{"protocol": "aleph.ra-tls", "version": 1, "port": 8443}],
     }
     content.update(overrides)
     return content
@@ -180,7 +182,9 @@ def test_vprogram_content_valid():
     content = VerifiableProgramContent.model_validate(make_vprogram_content())
     assert content.payment.is_credit
     assert content.is_confidential is True
-    assert content.attestation_port is None  # bundle default (8443)
+    assert content.attestation[0].protocol == "aleph.ra-tls"
+    assert content.attestation[0].version == 1
+    assert content.attestation[0].port == 8443
     assert content.verification.measurements[0].vcpu_type == "EPYC-v4"
 
 
@@ -201,16 +205,55 @@ def test_vprogram_content_payment_required():
         VerifiableProgramContent.model_validate(make_vprogram_content(payment=None))
 
 
-def test_vprogram_content_attestation_port_bounds():
-    ok = VerifiableProgramContent.model_validate(
-        make_vprogram_content(attestation_port=8443)
-    )
-    assert ok.attestation_port == 8443
+def test_attestation_protocol_valid():
+    p = AttestationProtocol(protocol="aleph.ra-tls", version=1, port=8443)
+    assert p.protocol == "aleph.ra-tls"
+    # port is optional: None means the runtime manifest's declared default
+    assert AttestationProtocol(protocol="ietf.tls-attest", version=2).port is None
+
+
+def test_attestation_protocol_rejects_bad_identifiers():
+    for bad in (
+        "ra-tls",  # no namespace separator
+        "RA-TLS.v1",  # uppercase
+        "aleph.",  # empty segment
+        ".ra-tls",  # empty namespace
+        "aleph .ra-tls",  # whitespace
+        "a" * 63 + ".b" * 2,  # over the length cap
+    ):
+        with pytest.raises(ValidationError):
+            AttestationProtocol(protocol=bad, version=1)
+
+
+def test_attestation_protocol_version_and_port_bounds():
+    with pytest.raises(ValidationError):
+        AttestationProtocol(protocol="aleph.ra-tls", version=0)
     for bad_port in (0, 65536):
         with pytest.raises(ValidationError):
-            VerifiableProgramContent.model_validate(
-                make_vprogram_content(attestation_port=bad_port)
-            )
+            AttestationProtocol(protocol="aleph.ra-tls", version=1, port=bad_port)
+
+
+def test_attestation_protocol_forbids_extra_fields():
+    with pytest.raises(ValidationError):
+        AttestationProtocol(protocol="aleph.ra-tls", version=1, oid="1.2.3")
+
+
+def test_vprogram_content_requires_attestation():
+    content = make_vprogram_content()
+    del content["attestation"]
+    with pytest.raises(ValidationError, match="attestation"):
+        VerifiableProgramContent.model_validate(content)
+    # the declared list must not be empty and is capped
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(make_vprogram_content(attestation=[]))
+    too_many = [
+        {"protocol": f"aleph.proto-{i}", "version": 1}
+        for i in range(9)  # MAX_ATTESTATION_PROTOCOLS + 1
+    ]
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(attestation=too_many)
+        )
 
 
 def test_vprogram_content_node_hash_is_optional():

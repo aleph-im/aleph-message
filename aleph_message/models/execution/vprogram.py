@@ -25,18 +25,59 @@ from .environment import (
 MAX_RUNTIME_COMMENT_LENGTH = 1024
 # sha256 dm-verity root hash, as printed by veritysetup format
 VERITY_ROOTHASH_PATTERN = r"^[0-9a-f]{64}$"
+MAX_ATTESTATION_PROTOCOLS = 8
+# Namespaced protocol identifier, e.g. "aleph.ra-tls" or "ietf.tls-attest"
+ATTESTATION_PROTOCOL_PATTERN = r"^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$"
+MAX_ATTESTATION_PROTOCOL_LENGTH = 64
 
 
 class ConfidentialRuntime(HashableModel):
-    """The measured platform: a store object bundling the manifest, OVMF,
-    kernel, initrd, and the dm-verity platform rootfs with its hash tree.
+    """The measured platform: a store message holding the runtime manifest,
+    which pins the OVMF, kernel, initrd and dm-verity platform rootfs (plus
+    its hash tree) by content hash, and declares the cmdline template, boot
+    format and attestation protocols the runtime implements.
 
     There is deliberately no use_latest: the measurements in the message pin
-    exact artifacts, so the reference must be immutable.
+    exact artifacts, so the reference must be immutable (resolved as an exact
+    item hash, never through file tags).
     """
 
-    ref: ItemHash = Field(description="Store message of the measured runtime bundle")
+    ref: ItemHash = Field(description="Store message of the runtime manifest")
     comment: str = Field(default="", max_length=MAX_RUNTIME_COMMENT_LENGTH)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AttestationProtocol(HashableModel):
+    """One mechanism a client can use to obtain and channel-bind TEE evidence
+    from the running VM, e.g. RA-TLS certificate embedding, IETF attested TLS,
+    or an on-demand evidence endpoint.
+
+    The runtime manifest is the authoritative list of protocols the runtime
+    implements; the message carries this declared copy so clients and CCNs can
+    fail fast without fetching the manifest (checked redundancy, like launch
+    measurements). Protocol identifiers are an open, namespaced string space:
+    known values live in the runtime registry, not in this schema.
+    """
+
+    protocol: str = Field(
+        pattern=ATTESTATION_PROTOCOL_PATTERN,
+        max_length=MAX_ATTESTATION_PROTOCOL_LENGTH,
+        description="Namespaced protocol identifier, e.g. aleph.ra-tls",
+    )
+    version: int = Field(
+        ge=1, description="Protocol version implemented by the runtime"
+    )
+    port: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=65535,
+        description=(
+            "In-guest port serving this protocol; None means the runtime "
+            "manifest's declared default. Plumbed through the measured "
+            "cmdline; the agent auto-maps a host port for IPv4 clients."
+        ),
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -119,13 +160,12 @@ class VerifiableProgramContent(BaseExecutableContent):
     verification: TeeVerification = Field(
         description="TEE launch config and expected launch measurements"
     )
-    attestation_port: Optional[int] = Field(
-        default=None,
-        ge=1,
-        le=65535,
+    attestation: List[AttestationProtocol] = Field(
+        min_length=1,
+        max_length=MAX_ATTESTATION_PROTOCOLS,
         description=(
-            "In-guest attestation port; None means the runtime bundle's "
-            "declared default (8443). Plumbed through the measured cmdline."
+            "Attestation protocols the runtime exposes; a declared copy of "
+            "the runtime manifest entries"
         ),
     )
 
