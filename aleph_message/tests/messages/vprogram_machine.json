@@ -14,8 +14,7 @@
             "type": "credit"
         },
         "environment": {
-            "internet": true,
-            "aleph_api": false
+            "internet": true
         },
         "resources": {
             "vcpus": 2,
@@ -42,13 +41,13 @@
                 }
             ]
         },
-        "attestation": [
+        "volumes": [
             {
-                "protocol": "aleph.ra-tls",
-                "version": 1,
-                "port": 8443
+                "ref": "dadadadadadadadadadadadadadadadadadadadadadadadadadadadadadadada",
+                "hash_tree": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+                "roothash": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+                "comment": "model weights"
             }
-        ],
-        "volumes": []
+        ]
     }
 }

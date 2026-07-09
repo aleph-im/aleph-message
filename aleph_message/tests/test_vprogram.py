@@ -25,11 +25,11 @@ from aleph_message.models.execution.environment import (
 )
 from aleph_message.models.execution.instance import InstanceContent
 from aleph_message.models.execution.vprogram import (
-    AttestationProtocol,
-    ConfidentialRuntime,
     TeeVerification,
     VerifiableProgramContent,
     VerifiableProgramEnvironment,
+    VerifiableProgramRuntime,
+    VerifiedVolume,
     VerifiedWorkload,
 )
 
@@ -97,11 +97,11 @@ def test_validate_snp_policy_bounds():
 ITEM_HASH = "cafe" * 16  # 64 hex chars, valid storage ItemHash
 
 
-def test_confidential_runtime():
-    r = ConfidentialRuntime(ref=ITEM_HASH, comment="compose-runner snp bundle")
+def test_verifiable_program_runtime():
+    r = VerifiableProgramRuntime(ref=ITEM_HASH, comment="compose-runner snp bundle")
     assert r.ref == ITEM_HASH
     # no use_latest field exists: measurements pin exact artifacts
-    assert "use_latest" not in ConfidentialRuntime.model_fields
+    assert "use_latest" not in VerifiableProgramRuntime.model_fields
 
 
 def test_verified_workload_roothash_validation():
@@ -145,9 +145,10 @@ def test_tee_verification_rejects_negative_policy():
 def test_vprogram_environment_defaults():
     env = VerifiableProgramEnvironment()
     assert env.internet is False
-    assert env.aleph_api is False
     with pytest.raises(ValidationError):
         VerifiableProgramEnvironment(hypervisor="qemu")  # extra fields forbidden
+    with pytest.raises(ValidationError):
+        VerifiableProgramEnvironment(aleph_api=True)  # dropped legacy program flag
 
 
 def make_vprogram_content(**overrides) -> dict:
@@ -157,7 +158,7 @@ def make_vprogram_content(**overrides) -> dict:
         "time": 1719502000.0,
         "allow_amend": False,
         "payment": {"type": "credit"},
-        "environment": {"internet": True, "aleph_api": False},
+        "environment": {"internet": True},
         "resources": {"vcpus": 2, "memory": 2048, "seconds": 30},
         "runtime": {"ref": ITEM_HASH, "comment": "compose-runner snp bundle"},
         "workload": {
@@ -172,7 +173,6 @@ def make_vprogram_content(**overrides) -> dict:
                 {"platform": "sev_snp", "digest": SNP_DIGEST, "vcpu_type": "EPYC-v4"}
             ],
         },
-        "attestation": [{"protocol": "aleph.ra-tls", "version": 1, "port": 8443}],
     }
     content.update(overrides)
     return content
@@ -182,9 +182,7 @@ def test_vprogram_content_valid():
     content = VerifiableProgramContent.model_validate(make_vprogram_content())
     assert content.payment.is_credit
     assert content.is_confidential is True
-    assert content.attestation[0].protocol == "aleph.ra-tls"
-    assert content.attestation[0].version == 1
-    assert content.attestation[0].port == 8443
+    assert content.volumes == []
     assert content.verification.measurements[0].vcpu_type == "EPYC-v4"
 
 
@@ -205,54 +203,63 @@ def test_vprogram_content_payment_required():
         VerifiableProgramContent.model_validate(make_vprogram_content(payment=None))
 
 
-def test_attestation_protocol_valid():
-    p = AttestationProtocol(protocol="aleph.ra-tls", version=1, port=8443)
-    assert p.protocol == "aleph.ra-tls"
-    # port is optional: None means the runtime manifest's declared default
-    assert AttestationProtocol(protocol="ietf.tls-attest", version=2).port is None
+def test_verified_volume():
+    v = VerifiedVolume(
+        ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="ab" * 32, comment="llm weights"
+    )
+    assert v.roothash == "ab" * 32
+    # no mount field: binding is positional via the measured cmdline, and an
+    # unmeasured mount mapping would let a malicious host permute volumes
+    assert "mount" not in VerifiedVolume.model_fields
+    with pytest.raises(ValidationError):
+        VerifiedVolume(ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="ab" * 31)
+    with pytest.raises(ValidationError):
+        VerifiedVolume(
+            ref=ITEM_HASH, hash_tree=ITEM_HASH, roothash="ab" * 32, mount="/data"
+        )
 
 
-def test_attestation_protocol_rejects_bad_identifiers():
-    for bad in (
-        "ra-tls",  # no namespace separator
-        "RA-TLS.v1",  # uppercase
-        "aleph.",  # empty segment
-        ".ra-tls",  # empty namespace
-        "aleph .ra-tls",  # whitespace
-        "a" * 63 + ".b" * 2,  # over the length cap
+def test_vprogram_content_accepts_verified_volumes():
+    volume = {"ref": ITEM_HASH, "hash_tree": ITEM_HASH, "roothash": "ab" * 32}
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(volumes=[volume])
+    )
+    assert content.volumes[0].roothash == "ab" * 32
+
+
+def test_vprogram_content_rejects_unverified_volumes():
+    # classic machine volumes are unmeasured input inside an attested VM
+    for bad_volume in (
+        {"ephemeral": True, "mount": "/var/cache", "size_mib": 5},
+        {"ref": ITEM_HASH, "mount": "/opt/venv", "use_latest": False},
+        {"persistence": "host", "name": "scratch", "mount": "/var/raw", "size_mib": 1},
     ):
         with pytest.raises(ValidationError):
-            AttestationProtocol(protocol=bad, version=1)
+            VerifiableProgramContent.model_validate(
+                make_vprogram_content(volumes=[bad_volume])
+            )
 
 
-def test_attestation_protocol_version_and_port_bounds():
-    with pytest.raises(ValidationError):
-        AttestationProtocol(protocol="aleph.ra-tls", version=0)
-    for bad_port in (0, 65536):
-        with pytest.raises(ValidationError):
-            AttestationProtocol(protocol="aleph.ra-tls", version=1, port=bad_port)
-
-
-def test_attestation_protocol_forbids_extra_fields():
-    with pytest.raises(ValidationError):
-        AttestationProtocol(protocol="aleph.ra-tls", version=1, oid="1.2.3")
-
-
-def test_vprogram_content_requires_attestation():
-    content = make_vprogram_content()
-    del content["attestation"]
-    with pytest.raises(ValidationError, match="attestation"):
-        VerifiableProgramContent.model_validate(content)
-    # the declared list must not be empty and is capped
-    with pytest.raises(ValidationError):
-        VerifiableProgramContent.model_validate(make_vprogram_content(attestation=[]))
-    too_many = [
-        {"protocol": f"aleph.proto-{i}", "version": 1}
-        for i in range(9)  # MAX_ATTESTATION_PROTOCOLS + 1
-    ]
+def test_vprogram_content_caps_verified_volumes():
+    volume = {"ref": ITEM_HASH, "hash_tree": ITEM_HASH, "roothash": "ab" * 32}
     with pytest.raises(ValidationError):
         VerifiableProgramContent.model_validate(
-            make_vprogram_content(attestation=too_many)
+            make_vprogram_content(volumes=[volume] * 9)  # MAX_VERIFIED_VOLUMES + 1
+        )
+
+
+def test_vprogram_content_rejects_unmeasured_inputs():
+    with pytest.raises(ValidationError, match="variables"):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(variables={"VM_CUSTOM_VARIABLE": "SOMETHING"})
+        )
+    key = (
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGULT6A41Msmw2KEu0R9MvUjhuWNAsbdeZ0DOwYbt4Qt"
+        " user@example"
+    )
+    with pytest.raises(ValidationError, match="authorized_keys"):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(authorized_keys=[key])
         )
 
 
