@@ -263,6 +263,17 @@ def test_vprogram_content_rejects_unmeasured_inputs():
         )
 
 
+def test_vprogram_content_rejects_amendment():
+    # An amend would let the measured stack change under a fixed deployment
+    # identity; upgrades are explicit redeployments (new message, new hash).
+    with pytest.raises(ValidationError, match="immutable"):
+        VerifiableProgramContent.model_validate(make_vprogram_content(allow_amend=True))
+    with pytest.raises(ValidationError, match="immutable"):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(replaces="cafe" * 16)
+        )
+
+
 def test_vprogram_content_node_hash_is_optional():
     # dispatch is scheduler-driven; node_hash is only an optional placement pin
     content = VerifiableProgramContent.model_validate(

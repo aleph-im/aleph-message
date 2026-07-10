@@ -133,6 +133,11 @@ class VerifiableProgramContent(BaseExecutableContent):
     must be verified (VerifiedVolume), and the inherited unmeasured input
     channels (variables, authorized_keys) are rejected. Workload environment
     variables belong in the verity-bound workload contract.
+
+    V-Programs are also immutable: the inherited amendment channel
+    (allow_amend, replaces) is rejected, because an amend would let the
+    measured stack change under a fixed deployment identity. Upgrading is
+    an explicit redeployment: publish a new message, clients re-target it.
     """
 
     payment: Payment = Field(description="Payment details; V-Programs are credit-only")
@@ -170,6 +175,16 @@ class VerifiableProgramContent(BaseExecutableContent):
             raise ValueError(
                 "V-Programs are credit-only: holder-tier and PAYG stream "
                 "payments are not supported"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def check_immutable(self) -> Self:
+        if self.allow_amend or self.replaces is not None:
+            raise ValueError(
+                "V-Programs are immutable: amendment would let the measured "
+                "stack change under a fixed deployment identity; publish a "
+                "new message instead"
             )
         return self
 
