@@ -36,7 +36,9 @@
             "measurements": [
                 {
                     "platform": "sev_snp",
-                    "digest": "abababababababababababababababababababababababababababababababababababababababababababababababab",
+                    "registers": {
+                        "launch": "abababababababababababababababababababababababababababababababababababababababababababababababab"
+                    },
                     "vcpu_type": "EPYC-v4"
                 }
             ]

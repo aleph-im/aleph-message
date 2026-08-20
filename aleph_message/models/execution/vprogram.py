@@ -101,7 +101,7 @@ class TeeVerification(HashableModel):
     measurements: List[LaunchMeasurement] = Field(
         min_length=1,
         max_length=MAX_MEASUREMENTS,
-        description="Expected launch digests; never sent to the supervisor",
+        description="Expected measurement registers; never sent to the supervisor",
     )
 
     model_config = ConfigDict(extra="forbid")

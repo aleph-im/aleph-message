@@ -44,35 +44,75 @@ def test_message_type_v_program():
 
 def test_launch_measurement_valid():
     m = LaunchMeasurement(
-        platform=TeePlatform.sev_snp, digest=SNP_DIGEST, vcpu_type="EPYC-v4"
+        platform=TeePlatform.sev_snp,
+        registers={"launch": SNP_DIGEST},
+        vcpu_type="EPYC-v4",
     )
     assert m.platform is TeePlatform.sev_snp
+    assert m.registers == {"launch": SNP_DIGEST}
     assert m.vcpu_type == "EPYC-v4"
     # vcpu_type is optional: absent for igvm-recipe bundles
-    assert LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST).vcpu_type is None
+    assert (
+        LaunchMeasurement(
+            platform="sev_snp", registers={"launch": SNP_DIGEST}
+        ).vcpu_type
+        is None
+    )
 
 
-def test_launch_measurement_rejects_bad_digests():
+def test_launch_measurement_rejects_bad_register_values():
     # wrong length for sev_snp (sha256-sized digest)
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="sev_snp", digest=SHA256_HEX)
+        LaunchMeasurement(platform="sev_snp", registers={"launch": SHA256_HEX})
     # non-hex content
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="sev_snp", digest="zz" * 48)
+        LaunchMeasurement(platform="sev_snp", registers={"launch": "zz" * 48})
     # uppercase hex is rejected (canonical form is lowercase)
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="sev_snp", digest="AB" * 48)
+        LaunchMeasurement(platform="sev_snp", registers={"launch": "AB" * 48})
+
+
+def test_launch_measurement_register_key_set_is_closed():
+    """The key set must equal the platform's required set exactly.
+
+    An unknown register key is as schema-invalid as an unknown platform:
+    nothing unverifiable gets network blessing.
+    """
+    # missing the required key
+    with pytest.raises(ValidationError):
+        LaunchMeasurement(platform="sev_snp", registers={})
+    # an unknown key alongside the required one
+    with pytest.raises(ValidationError):
+        LaunchMeasurement(
+            platform="sev_snp",
+            registers={"launch": SNP_DIGEST, "mrtd": SNP_DIGEST},
+        )
+    # a register from another platform instead of the required one
+    with pytest.raises(ValidationError):
+        LaunchMeasurement(platform="sev_snp", registers={"mrtd": SNP_DIGEST})
 
 
 def test_launch_measurement_rejects_unknown_platform():
     # unknown platforms are schema-invalid until a protocol upgrade adds them
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="tdx", digest=SNP_DIGEST)
+        LaunchMeasurement(platform="tdx", registers={"launch": SNP_DIGEST})
+
+
+def test_launch_measurement_rejects_legacy_digest_field():
+    """The pre-register scalar shape must not silently deserialize.
+
+    `extra="forbid"` turns a stale `digest` key into an error rather than a
+    measurement with an empty register map.
+    """
+    with pytest.raises(ValidationError):
+        LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)
 
 
 def test_launch_measurement_forbids_extra_fields():
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST, extra_field=1)
+        LaunchMeasurement(
+            platform="sev_snp", registers={"launch": SNP_DIGEST}, extra_field=1
+        )
 
 
 def test_validate_snp_policy():
@@ -116,7 +156,7 @@ def test_verified_workload_roothash_validation():
 def test_tee_verification_defaults_and_policy():
     v = TeeVerification(
         backend="sev_snp",
-        measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+        measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
     )
     assert v.policy == 0x30000
     with pytest.raises(ValidationError):
@@ -124,7 +164,7 @@ def test_tee_verification_defaults_and_policy():
         TeeVerification(
             backend="sev_snp",
             policy=0x1,
-            measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+            measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
         )
 
 
@@ -138,7 +178,7 @@ def test_tee_verification_rejects_negative_policy():
         TeeVerification(
             backend="sev_snp",
             policy=-1,
-            measurements=[LaunchMeasurement(platform="sev_snp", digest=SNP_DIGEST)],
+            measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
         )
 
 
@@ -170,7 +210,11 @@ def make_vprogram_content(**overrides) -> dict:
             "backend": "sev_snp",
             "policy": 0x30000,
             "measurements": [
-                {"platform": "sev_snp", "digest": SNP_DIGEST, "vcpu_type": "EPYC-v4"}
+                {
+                    "platform": "sev_snp",
+                    "registers": {"launch": SNP_DIGEST},
+                    "vcpu_type": "EPYC-v4",
+                }
             ],
         },
     }
@@ -306,7 +350,7 @@ def make_snp_tee(**overrides) -> dict:
         "mode": "sev_snp",
         "policy": 0x30000,
         "runtime": ITEM_HASH,
-        "measurements": [{"platform": "sev_snp", "digest": SNP_DIGEST}],
+        "measurements": [{"platform": "sev_snp", "registers": {"launch": SNP_DIGEST}}],
     }
     tee.update(overrides)
     return tee
@@ -368,7 +412,7 @@ def test_trusted_execution_snp_rejects_negative_policy():
 def test_trusted_execution_sev_forbids_snp_fields():
     for extra in (
         {"runtime": ITEM_HASH},
-        {"measurements": [{"platform": "sev_snp", "digest": SNP_DIGEST}]},
+        {"measurements": [{"platform": "sev_snp", "registers": {"launch": SNP_DIGEST}}]},
         {"attestation_port": 8443},
     ):
         with pytest.raises(ValidationError, match="sev_snp"):
