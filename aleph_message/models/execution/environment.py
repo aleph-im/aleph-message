@@ -162,18 +162,154 @@ class AMDSEVPolicy(int, Enum):
     SEV = 0b100000  # The guest must not be transmitted to another platform that is not SEV capable
 
 
-class TrustedExecutionEnvironment(HashableModel):
-    """Trusted Execution Environment properties."""
+# SEV-SNP guest policy (64-bit). Bit 17 is reserved and must be 1; 0x30000
+# also sets bit 16 (SMT allowed), the recommended default.
+SNP_POLICY_RESERVED_BIT_17 = 1 << 17
+DEFAULT_SNP_POLICY = 0x30000
+MAX_VCPU_TYPE_LENGTH = 64
+# Protocol-wide cap on the number of launch measurements a single TEE
+# declaration may carry (one per vcpu_type in the mixed-fleet case).
+MAX_MEASUREMENTS = 16
 
-    firmware: Optional[ItemHash] = Field(
-        default=None, description="Confidential OVMF firmware to use"
+
+def validate_snp_policy(policy: int) -> None:
+    """Raise ValueError if the value is not a plausible SEV-SNP guest policy."""
+    policy_int = int(policy)
+    if not 0 <= policy_int < 1 << 64:
+        raise ValueError(
+            f"SEV-SNP guest policy must be an unsigned 64-bit integer; got {policy_int:#x}"
+        )
+    if not policy_int & SNP_POLICY_RESERVED_BIT_17:
+        raise ValueError(
+            "SEV-SNP guest policy must have reserved bit 17 set "
+            f"(e.g. {DEFAULT_SNP_POLICY:#x}); got {policy_int:#x}. "
+            "Note that SEV policy bit semantics do not apply to SEV-SNP."
+        )
+
+
+class TeePlatform(str, Enum):
+    """TEE platforms with a defined launch-measurement semantics.
+
+    Grows over protocol upgrades (e.g. "tdx" with MRTD digests). Unknown
+    platforms are schema-invalid: nothing unverifiable gets network blessing.
+    """
+
+    sev_snp = "sev_snp"
+
+
+# Expected hex length of a launch digest, per platform.
+# sev_snp: 48-byte SHA-384 launch digest.
+_DIGEST_HEX_LENGTHS = {TeePlatform.sev_snp: 96}
+
+
+class LaunchMeasurement(HashableModel):
+    """Supervisor-opaque verification annotation, validated by the CCN.
+
+    Declares the launch digest a verifier should expect. Multiple entries
+    (one per vcpu_type) keep a message verifiable across a mixed CPU fleet.
+    """
+
+    platform: TeePlatform
+    digest: str = Field(
+        pattern=r"^[0-9a-f]+$",
+        max_length=128,
+        description="Expected launch digest, lowercase hex; length is platform-defined",
     )
-    policy: int = Field(
-        default=AMDSEVPolicy.NO_DBG,
-        description="Policy of the TEE. Default value is 0x01 for SEV without debugging.",
+    vcpu_type: Optional[str] = Field(
+        default=None,
+        max_length=MAX_VCPU_TYPE_LENGTH,
+        description=(
+            "QEMU CPU model this digest was computed for (e.g. 'EPYC-v4'). "
+            "Required by direct-boot measurement recipes, absent for igvm bundles."
+        ),
     )
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def check_digest_length(self) -> "LaunchMeasurement":
+        expected = _DIGEST_HEX_LENGTHS.get(self.platform)
+        if expected is None:
+            raise ValueError(
+                f"no digest length defined for platform {self.platform.value}"
+            )
+        if len(self.digest) != expected:
+            raise ValueError(
+                f"{self.platform.value} digest must be {expected} hex characters, "
+                f"got {len(self.digest)}"
+            )
+        return self
+
+
+class TrustedExecutionEnvironment(HashableModel):
+    """Trusted Execution Environment properties.
+
+    Two modes coexist:
+    - mode None or "sev" (legacy): AMD SEV/SEV-ES with the CRN-mediated
+      launch-secret flow; `firmware` references the confidential OVMF and
+      `policy` uses AMD SEV bit semantics (AMDSEVPolicy).
+    - mode "sev_snp": measured boot from a runtime bundle with direct
+      client-to-guest attestation; `policy` uses SEV-SNP 64-bit semantics
+      and `measurements` carry the expected launch digests.
+    """
+
+    firmware: Optional[ItemHash] = Field(
+        default=None, description="Confidential OVMF firmware to use (SEV mode only)"
+    )
+    policy: int = Field(
+        default=AMDSEVPolicy.NO_DBG,
+        description=(
+            "Policy of the TEE. SEV bit semantics in SEV mode (default 0x01, "
+            "no debugging); SEV-SNP 64-bit guest policy in sev_snp mode."
+        ),
+    )
+    mode: Optional[Literal["sev", "sev_snp"]] = Field(
+        default=None,
+        description="TEE mode; None means legacy SEV (kept for wire stability)",
+    )
+    runtime: Optional[ItemHash] = Field(
+        default=None,
+        description="Measured runtime bundle store message (sev_snp mode only)",
+    )
+    measurements: Optional[List[LaunchMeasurement]] = Field(
+        default=None,
+        max_length=MAX_MEASUREMENTS,
+        description="Expected launch digests (sev_snp mode only); CCN-validated",
+    )
+    attestation_port: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=65535,
+        description=(
+            "In-guest attestation port (sev_snp mode only); None means the "
+            "runtime bundle default (8443)"
+        ),
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @property
+    def is_snp(self) -> bool:
+        return self.mode == "sev_snp"
+
+    @model_validator(mode="after")
+    def check_mode_consistency(self) -> "TrustedExecutionEnvironment":
+        if self.is_snp:
+            if self.firmware is not None:
+                raise ValueError(
+                    "firmware belongs to the SEV flow and must not be set in "
+                    "sev_snp mode; use runtime instead"
+                )
+            if self.runtime is None:
+                raise ValueError("sev_snp mode requires runtime")
+            if not self.measurements:
+                raise ValueError("sev_snp mode requires measurements")
+            validate_snp_policy(self.policy)
+        else:
+            for field_name in ("runtime", "measurements", "attestation_port"):
+                if getattr(self, field_name) is not None:
+                    raise ValueError(f"{field_name} is only valid in sev_snp mode")
+        return self
 
 
 class InstanceEnvironment(HashableModel):

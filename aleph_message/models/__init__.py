@@ -26,6 +26,7 @@ from .base import Chain, HashType, MessageType
 from .execution.base import MachineType, Payment, PaymentType
 from .execution.instance import InstanceContent
 from .execution.program import ProgramContent
+from .execution.vprogram import VerifiableProgramContent
 from .item_hash import ItemHash, ItemType
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,8 @@ __all__ = [
     "ProgramMessage",
     "StoreContent",
     "StoreMessage",
+    "VerifiableProgramContent",
+    "VerifiableProgramMessage",
 ]
 
 
@@ -403,12 +406,35 @@ class InstanceMessage(BaseMessage):
     forgotten_by: Optional[List[str]] = None
 
 
+class VerifiableProgramMessage(BaseMessage):
+    type: Literal[MessageType.v_program]
+    content: VerifiableProgramContent
+    forgotten_by: Optional[List[str]] = None
+
+    @field_validator("content")
+    def check_content(cls, v, values):
+        """Ensure that the content of the message is correctly formatted."""
+        item_type = values.data.get("item_type")
+        if item_type == ItemType.inline:
+            # Ensure that the content correct JSON
+            item_content = json.loads(values.data.get("item_content"))
+            # Ensure that the content matches the expected structure
+            if v.model_dump(exclude_none=True) != item_content:
+                logger.warning(
+                    "Content and item_content differ for message %s",
+                    values.data["item_hash"],
+                )
+                raise ValueError("Content and item_content differ")
+        return v
+
+
 AlephMessage: TypeAlias = Union[
     PostMessage,
     AggregateMessage,
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
+    VerifiableProgramMessage,
     ForgetMessage,
 ]
 
@@ -423,11 +449,16 @@ message_classes: List[AlephMessageType] = [
     StoreMessage,
     ProgramMessage,
     InstanceMessage,
+    VerifiableProgramMessage,
     ForgetMessage,
 ]
 
-ExecutableContent: TypeAlias = Union[InstanceContent, ProgramContent]
-ExecutableMessage: TypeAlias = Union[InstanceMessage, ProgramMessage]
+ExecutableContent: TypeAlias = Union[
+    InstanceContent, ProgramContent, VerifiableProgramContent
+]
+ExecutableMessage: TypeAlias = Union[
+    InstanceMessage, ProgramMessage, VerifiableProgramMessage
+]
 
 
 def parse_message(message_dict: Dict) -> AlephMessage:
