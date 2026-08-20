@@ -18,6 +18,7 @@ from aleph_message.models import (
 from aleph_message.models.base import MessageType
 from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
+    MAX_REGISTERS,
     LaunchMeasurement,
     TeePlatform,
     TrustedExecutionEnvironment,
@@ -92,6 +93,56 @@ def test_launch_measurement_register_key_set_is_closed():
         LaunchMeasurement(platform="sev_snp", registers={"mrtd": SNP_DIGEST})
 
 
+def test_launch_measurement_register_values_are_type_constrained():
+    """Value shape is enforced by the field type, not just the validator.
+
+    The error must be located at the offending register so a malformed
+    message says which one is wrong.
+    """
+    with pytest.raises(ValidationError) as exc:
+        LaunchMeasurement(platform="sev_snp", registers={"launch": "zz" * 48})
+    error = exc.value.errors()[0]
+    assert error["type"] == "string_pattern_mismatch"
+    assert error["loc"] == ("registers", "launch")
+
+
+def test_launch_measurement_rejects_malformed_register_names():
+    """Register names are constrained before the key set is consulted.
+
+    Keeps junk keys (uppercase, punctuation, unbounded length) out of the
+    error path entirely rather than surfacing them in a set-mismatch message.
+    """
+    for name in ["Launch", "bad-key", "with space", "x" * 33, ""]:
+        with pytest.raises(ValidationError):
+            LaunchMeasurement(platform="sev_snp", registers={name: SNP_DIGEST})
+
+
+def test_launch_measurement_caps_register_count():
+    """An oversized map is rejected by the field type, before validation.
+
+    Without the cap a message could declare an unbounded number of registers
+    and be fully parsed before the closed-set check rejects it.
+    """
+    oversized = {f"r{i}": SNP_DIGEST for i in range(MAX_REGISTERS + 1)}
+    with pytest.raises(ValidationError) as exc:
+        LaunchMeasurement(platform="sev_snp", registers=oversized)
+    assert exc.value.errors()[0]["type"] == "too_long"
+
+
+def test_launch_measurement_schema_exposes_register_constraints():
+    """The constraints must reach model_json_schema().
+
+    Other SDKs and the docs generate off the JSON schema; a shape enforced
+    only in Python is invisible to them.
+    """
+    schema = LaunchMeasurement.model_json_schema()["properties"]["registers"]
+    assert schema["maxProperties"] == MAX_REGISTERS
+    patterns = schema["patternProperties"]
+    assert len(patterns) == 1
+    value_schema = next(iter(patterns.values()))
+    assert value_schema["pattern"] == r"^[0-9a-f]{96}$"
+
+
 def test_launch_measurement_rejects_unknown_platform():
     # unknown platforms are schema-invalid until a protocol upgrade adds them
     with pytest.raises(ValidationError):
@@ -156,7 +207,9 @@ def test_verified_workload_roothash_validation():
 def test_tee_verification_defaults_and_policy():
     v = TeeVerification(
         backend="sev_snp",
-        measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
+        measurements=[
+            LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})
+        ],
     )
     assert v.policy == 0x30000
     with pytest.raises(ValidationError):
@@ -164,7 +217,9 @@ def test_tee_verification_defaults_and_policy():
         TeeVerification(
             backend="sev_snp",
             policy=0x1,
-            measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
+            measurements=[
+                LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})
+            ],
         )
 
 
@@ -178,7 +233,9 @@ def test_tee_verification_rejects_negative_policy():
         TeeVerification(
             backend="sev_snp",
             policy=-1,
-            measurements=[LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})],
+            measurements=[
+                LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})
+            ],
         )
 
 
@@ -412,7 +469,11 @@ def test_trusted_execution_snp_rejects_negative_policy():
 def test_trusted_execution_sev_forbids_snp_fields():
     for extra in (
         {"runtime": ITEM_HASH},
-        {"measurements": [{"platform": "sev_snp", "registers": {"launch": SNP_DIGEST}}]},
+        {
+            "measurements": [
+                {"platform": "sev_snp", "registers": {"launch": SNP_DIGEST}}
+            ]
+        },
         {"attestation_port": 8443},
     ):
         with pytest.raises(ValidationError, match="sev_snp"):

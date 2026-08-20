@@ -2,9 +2,15 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Dict, FrozenSet, List, Literal, Optional, Union
+from typing import Annotated, Dict, FrozenSet, List, Literal, Optional, Union
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
@@ -213,9 +219,25 @@ _REQUIRED_REGISTERS: Dict[TeePlatform, FrozenSet[str]] = {
 # Every pinned register on every platform is a 48-byte SHA-384 value.
 _REGISTER_HEX_LENGTH = 96
 
-# Canonical register encoding: lowercase hex only, so two encodings of the
-# same value can never both validate.
-_LOWERCASE_HEX = re.compile(r"[0-9a-f]*")
+# Upper bound on declared registers, independent of platform. The closed key
+# set below is the real constraint, but it is platform-dependent and so can
+# only run after the field is parsed. This cap is a field-level bound, which
+# means an absurd map is rejected during parsing rather than after.
+MAX_REGISTERS = 8
+
+# A register name: lowercase, starts with a letter, bounded. Names are wire
+# identifiers (sev_snp's "launch", tdx's "mrtd"/"rtmr1"), so the charset is
+# deliberately narrow.
+RegisterName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,31}$")]
+
+# A register value: exactly _REGISTER_HEX_LENGTH lowercase hex characters.
+# Encoding length and charset in one pattern keeps the constraint in the JSON
+# schema, so consumers generating off `model_json_schema()` (other SDKs, docs)
+# see the real shape instead of an open Dict[str, str]. Lowercase only, so two
+# encodings of the same value can never both validate.
+RegisterValue = Annotated[
+    str, StringConstraints(pattern=rf"^[0-9a-f]{{{_REGISTER_HEX_LENGTH}}}$")
+]
 
 
 class LaunchMeasurement(HashableModel):
@@ -227,7 +249,8 @@ class LaunchMeasurement(HashableModel):
     """
 
     platform: TeePlatform
-    registers: Dict[str, str] = Field(
+    registers: Dict[RegisterName, RegisterValue] = Field(
+        max_length=MAX_REGISTERS,
         description=(
             "Expected measurement registers, lowercase hex. The key set is "
             "platform-defined and closed; sev_snp declares {'launch'}."
@@ -248,9 +271,7 @@ class LaunchMeasurement(HashableModel):
     def check_registers(self) -> "LaunchMeasurement":
         required = _REQUIRED_REGISTERS.get(self.platform)
         if required is None:
-            raise ValueError(
-                f"no registers defined for platform {self.platform.value}"
-            )
+            raise ValueError(f"no registers defined for platform {self.platform.value}")
         declared = frozenset(self.registers)
         if declared != required:
             missing = sorted(required - declared)
@@ -259,16 +280,6 @@ class LaunchMeasurement(HashableModel):
                 f"{self.platform.value} requires exactly the registers "
                 f"{sorted(required)}; missing={missing} unknown={unknown}"
             )
-        for name, value in self.registers.items():
-            if len(value) != _REGISTER_HEX_LENGTH:
-                raise ValueError(
-                    f"{self.platform.value} register {name!r} must be "
-                    f"{_REGISTER_HEX_LENGTH} hex characters, got {len(value)}"
-                )
-            if not _LOWERCASE_HEX.fullmatch(value):
-                raise ValueError(
-                    f"{self.platform.value} register {name!r} must be lowercase hex"
-                )
         return self
 
 
