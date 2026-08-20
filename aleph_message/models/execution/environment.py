@@ -2,9 +2,15 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from ...utils import Mebibytes
 from ..abstract import HashableModel
@@ -197,48 +203,61 @@ class TeePlatform(str, Enum):
     sev_snp = "sev_snp"
 
 
-# Expected hex length of a launch digest, per platform.
-# sev_snp: 48-byte SHA-384 launch digest.
-_DIGEST_HEX_LENGTHS = {TeePlatform.sev_snp: 96}
+# Every pinned register is a 48-byte SHA-384 value.
+_REGISTER_HEX_LENGTH = 96
+
+# A register value: exactly _REGISTER_HEX_LENGTH lowercase hex characters.
+# Encoding length and charset in one pattern keeps the constraint in the JSON
+# schema, so consumers generating off `model_json_schema()` (other SDKs, docs)
+# see the real shape. Lowercase only, so two encodings of the same value can
+# never both validate.
+RegisterValue = Annotated[
+    str, StringConstraints(pattern=rf"^[0-9a-f]{{{_REGISTER_HEX_LENGTH}}}$")
+]
+
+
+class SevSnpRegisters(HashableModel):
+    """The measurement registers SEV-SNP pins: one launch digest.
+
+    A TEE's launch identity is not always a single value. SEV-SNP has one
+    launch digest, but platforms such as Intel TDX spread it over several
+    hardware registers (MRTD plus RTMRs), which is why the wire shape is an
+    object rather than a scalar. Only SEV-SNP is defined today, so this is a
+    concrete model rather than a generic map: `extra="forbid"` plus a required
+    field give the closed key set natively, with no validator to keep in step.
+
+    Adding a platform turns `LaunchMeasurement.registers` into a union
+    discriminated on `platform`. That is a schema release either way, since an
+    unknown platform is already schema-invalid.
+    """
+
+    launch: RegisterValue
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class LaunchMeasurement(HashableModel):
     """Supervisor-opaque verification annotation, validated by the CCN.
 
-    Declares the launch digest a verifier should expect. Multiple entries
-    (one per vcpu_type) keep a message verifiable across a mixed CPU fleet.
+    Declares the measurement registers a verifier should expect. Multiple
+    entries (one per vcpu_type) keep a message verifiable across a mixed CPU
+    fleet.
     """
 
     platform: TeePlatform
-    digest: str = Field(
-        pattern=r"^[0-9a-f]+$",
-        max_length=128,
-        description="Expected launch digest, lowercase hex; length is platform-defined",
+    registers: SevSnpRegisters = Field(
+        description="Expected measurement registers; sev_snp declares {'launch'}",
     )
     vcpu_type: Optional[str] = Field(
         default=None,
         max_length=MAX_VCPU_TYPE_LENGTH,
         description=(
-            "QEMU CPU model this digest was computed for (e.g. 'EPYC-v4'). "
+            "QEMU CPU model these registers were computed for (e.g. 'EPYC-v4'). "
             "Required by direct-boot measurement recipes, absent for igvm bundles."
         ),
     )
 
     model_config = ConfigDict(extra="forbid")
-
-    @model_validator(mode="after")
-    def check_digest_length(self) -> "LaunchMeasurement":
-        expected = _DIGEST_HEX_LENGTHS.get(self.platform)
-        if expected is None:
-            raise ValueError(
-                f"no digest length defined for platform {self.platform.value}"
-            )
-        if len(self.digest) != expected:
-            raise ValueError(
-                f"{self.platform.value} digest must be {expected} hex characters, "
-                f"got {len(self.digest)}"
-            )
-        return self
 
 
 class TrustedExecutionEnvironment(HashableModel):
@@ -250,7 +269,7 @@ class TrustedExecutionEnvironment(HashableModel):
       `policy` uses AMD SEV bit semantics (AMDSEVPolicy).
     - mode "sev_snp": measured boot from a runtime bundle with direct
       client-to-guest attestation; `policy` uses SEV-SNP 64-bit semantics
-      and `measurements` carry the expected launch digests.
+      and `measurements` carry the expected measurement registers.
     """
 
     firmware: Optional[ItemHash] = Field(
@@ -274,7 +293,7 @@ class TrustedExecutionEnvironment(HashableModel):
     measurements: Optional[List[LaunchMeasurement]] = Field(
         default=None,
         max_length=MAX_MEASUREMENTS,
-        description="Expected launch digests (sev_snp mode only); CCN-validated",
+        description="Expected measurement registers (sev_snp mode only); CCN-validated",
     )
     attestation_port: Optional[int] = Field(
         default=None,
