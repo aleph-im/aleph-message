@@ -18,7 +18,6 @@ from aleph_message.models import (
 from aleph_message.models.base import MessageType
 from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
-    MAX_REGISTERS,
     LaunchMeasurement,
     TeePlatform,
     TrustedExecutionEnvironment,
@@ -50,7 +49,7 @@ def test_launch_measurement_valid():
         vcpu_type="EPYC-v4",
     )
     assert m.platform is TeePlatform.sev_snp
-    assert m.registers == {"launch": SNP_DIGEST}
+    assert m.registers.launch == SNP_DIGEST
     assert m.vcpu_type == "EPYC-v4"
     # vcpu_type is optional: absent for igvm-recipe bundles
     assert (
@@ -74,27 +73,29 @@ def test_launch_measurement_rejects_bad_register_values():
 
 
 def test_launch_measurement_register_key_set_is_closed():
-    """The key set must equal the platform's required set exactly.
+    """The register set is exactly {"launch"}: nothing more, nothing less.
 
     An unknown register key is as schema-invalid as an unknown platform:
     nothing unverifiable gets network blessing.
     """
     # missing the required key
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc:
         LaunchMeasurement(platform="sev_snp", registers={})
+    assert exc.value.errors()[0]["type"] == "missing"
     # an unknown key alongside the required one
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc:
         LaunchMeasurement(
             platform="sev_snp",
             registers={"launch": SNP_DIGEST, "mrtd": SNP_DIGEST},
         )
+    assert exc.value.errors()[0]["type"] == "extra_forbidden"
     # a register from another platform instead of the required one
     with pytest.raises(ValidationError):
         LaunchMeasurement(platform="sev_snp", registers={"mrtd": SNP_DIGEST})
 
 
 def test_launch_measurement_register_values_are_type_constrained():
-    """Value shape is enforced by the field type, not just the validator.
+    """Value shape is enforced by the field type, not a validator.
 
     The error must be located at the offending register so a malformed
     message says which one is wrong.
@@ -106,41 +107,17 @@ def test_launch_measurement_register_values_are_type_constrained():
     assert error["loc"] == ("registers", "launch")
 
 
-def test_launch_measurement_rejects_malformed_register_names():
-    """Register names are constrained before the key set is consulted.
-
-    Keeps junk keys (uppercase, punctuation, unbounded length) out of the
-    error path entirely rather than surfacing them in a set-mismatch message.
-    """
-    for name in ["Launch", "bad-key", "with space", "x" * 33, ""]:
-        with pytest.raises(ValidationError):
-            LaunchMeasurement(platform="sev_snp", registers={name: SNP_DIGEST})
-
-
-def test_launch_measurement_caps_register_count():
-    """An oversized map is rejected by the field type, before validation.
-
-    Without the cap a message could declare an unbounded number of registers
-    and be fully parsed before the closed-set check rejects it.
-    """
-    oversized = {f"r{i}": SNP_DIGEST for i in range(MAX_REGISTERS + 1)}
-    with pytest.raises(ValidationError) as exc:
-        LaunchMeasurement(platform="sev_snp", registers=oversized)
-    assert exc.value.errors()[0]["type"] == "too_long"
-
-
 def test_launch_measurement_schema_exposes_register_constraints():
     """The constraints must reach model_json_schema().
 
     Other SDKs and the docs generate off the JSON schema; a shape enforced
     only in Python is invisible to them.
     """
-    schema = LaunchMeasurement.model_json_schema()["properties"]["registers"]
-    assert schema["maxProperties"] == MAX_REGISTERS
-    patterns = schema["patternProperties"]
-    assert len(patterns) == 1
-    value_schema = next(iter(patterns.values()))
-    assert value_schema["pattern"] == r"^[0-9a-f]{96}$"
+    schema = LaunchMeasurement.model_json_schema()
+    registers = schema["$defs"]["SevSnpRegisters"]
+    assert registers["required"] == ["launch"]
+    assert registers["additionalProperties"] is False
+    assert registers["properties"]["launch"]["pattern"] == r"^[0-9a-f]{96}$"
 
 
 def test_launch_measurement_rejects_unknown_platform():

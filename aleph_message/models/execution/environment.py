@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Annotated, Dict, FrozenSet, List, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
 from pydantic import (
     ConfigDict,
@@ -203,41 +203,37 @@ class TeePlatform(str, Enum):
     sev_snp = "sev_snp"
 
 
-# The measurement registers each platform pins, and nothing else.
-#
-# A TEE's launch identity is not always a single scalar: SEV-SNP has one
-# launch digest, while platforms such as Intel TDX spread it over several
-# hardware registers (MRTD plus RTMRs). The map is therefore keyed per
-# platform and CLOSED: a message declaring a key outside its platform's set,
-# or omitting one inside it, is schema-invalid. This is the same fail-closed
-# stance TeePlatform already takes for unknown platforms, applied one level
-# down: nothing unverifiable gets network blessing.
-_REQUIRED_REGISTERS: Dict[TeePlatform, FrozenSet[str]] = {
-    TeePlatform.sev_snp: frozenset({"launch"}),
-}
-
-# Every pinned register on every platform is a 48-byte SHA-384 value.
+# Every pinned register is a 48-byte SHA-384 value.
 _REGISTER_HEX_LENGTH = 96
-
-# Upper bound on declared registers, independent of platform. The closed key
-# set below is the real constraint, but it is platform-dependent and so can
-# only run after the field is parsed. This cap is a field-level bound, which
-# means an absurd map is rejected during parsing rather than after.
-MAX_REGISTERS = 8
-
-# A register name: lowercase, starts with a letter, bounded. Names are wire
-# identifiers (sev_snp's "launch", tdx's "mrtd"/"rtmr1"), so the charset is
-# deliberately narrow.
-RegisterName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,31}$")]
 
 # A register value: exactly _REGISTER_HEX_LENGTH lowercase hex characters.
 # Encoding length and charset in one pattern keeps the constraint in the JSON
 # schema, so consumers generating off `model_json_schema()` (other SDKs, docs)
-# see the real shape instead of an open Dict[str, str]. Lowercase only, so two
-# encodings of the same value can never both validate.
+# see the real shape. Lowercase only, so two encodings of the same value can
+# never both validate.
 RegisterValue = Annotated[
     str, StringConstraints(pattern=rf"^[0-9a-f]{{{_REGISTER_HEX_LENGTH}}}$")
 ]
+
+
+class SevSnpRegisters(HashableModel):
+    """The measurement registers SEV-SNP pins: one launch digest.
+
+    A TEE's launch identity is not always a single value. SEV-SNP has one
+    launch digest, but platforms such as Intel TDX spread it over several
+    hardware registers (MRTD plus RTMRs), which is why the wire shape is an
+    object rather than a scalar. Only SEV-SNP is defined today, so this is a
+    concrete model rather than a generic map: `extra="forbid"` plus a required
+    field give the closed key set natively, with no validator to keep in step.
+
+    Adding a platform turns `LaunchMeasurement.registers` into a union
+    discriminated on `platform`. That is a schema release either way, since an
+    unknown platform is already schema-invalid.
+    """
+
+    launch: RegisterValue
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class LaunchMeasurement(HashableModel):
@@ -249,12 +245,8 @@ class LaunchMeasurement(HashableModel):
     """
 
     platform: TeePlatform
-    registers: Dict[RegisterName, RegisterValue] = Field(
-        max_length=MAX_REGISTERS,
-        description=(
-            "Expected measurement registers, lowercase hex. The key set is "
-            "platform-defined and closed; sev_snp declares {'launch'}."
-        ),
+    registers: SevSnpRegisters = Field(
+        description="Expected measurement registers; sev_snp declares {'launch'}",
     )
     vcpu_type: Optional[str] = Field(
         default=None,
@@ -266,21 +258,6 @@ class LaunchMeasurement(HashableModel):
     )
 
     model_config = ConfigDict(extra="forbid")
-
-    @model_validator(mode="after")
-    def check_registers(self) -> "LaunchMeasurement":
-        required = _REQUIRED_REGISTERS.get(self.platform)
-        if required is None:
-            raise ValueError(f"no registers defined for platform {self.platform.value}")
-        declared = frozenset(self.registers)
-        if declared != required:
-            missing = sorted(required - declared)
-            unknown = sorted(declared - required)
-            raise ValueError(
-                f"{self.platform.value} requires exactly the registers "
-                f"{sorted(required)}; missing={missing} unknown={unknown}"
-            )
-        return self
 
 
 class TrustedExecutionEnvironment(HashableModel):
