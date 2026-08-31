@@ -67,7 +67,7 @@ class StrictMachineResources(MachineResources):
         default=Mebibytes(128), strict=True, ge=1, le=MAX_MEMORY_MIB
     )
     seconds: int = Field(default=1, strict=True, ge=1, le=MAX_SECONDS)
-    published_ports: Optional[List[StrictPublishedPort]] = Field(
+    published_ports: Optional[List[StrictPublishedPort]] = Field(  # type: ignore[assignment]
         default=None, description="IPv4 ports to map to open ports on the host."
     )
 
