@@ -3,6 +3,7 @@
 Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 """
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -358,6 +359,92 @@ def test_vprogram_content_node_hash_is_optional():
         make_vprogram_content(requirements={"node": {"node_hash": ITEM_HASH}})
     )
     assert content.requirements.node.node_hash == ITEM_HASH
+
+
+# Serde-parity strict scalars: the CCN stores and serves the raw item_content,
+# so a coerced scalar ("1" -> 1, 196608.0 -> 196608, "true" -> True) would
+# yield a processed message that strict decoders (the aleph-rs SDK) cannot
+# parse. V-PROGRAM scalars must accept exactly what serde accepts.
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("resources", "vcpus"), "2"),
+        (("resources", "vcpus"), 2.0),
+        (("resources", "vcpus"), True),
+        (("resources", "memory"), "2048"),
+        (("resources", "memory"), 2048.0),
+        (("resources", "seconds"), "30"),
+        (("resources", "seconds"), 30.0),
+        (("verification", "policy"), "196608"),
+        (("verification", "policy"), 196608.0),
+        (("verification", "policy"), True),
+        (("environment", "internet"), "true"),
+        (("environment", "internet"), 1),
+        (("environment", "internet"), 0),
+        (("allow_amend",), "false"),
+        (("allow_amend",), 0),
+        (("time",), "1719502000.0"),
+        (("time",), True),
+    ],
+)
+def test_vprogram_content_rejects_coerced_scalars(path, value):
+    """A scalar serde would reject must not validate, however coercible."""
+    content = make_vprogram_content()
+    target = content
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(content)
+
+
+def test_vprogram_content_time_accepts_json_integer():
+    # serde parses an integer JSON number into f64, so an integral time is
+    # valid; only strings and booleans are rejected
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(time=1719502000)
+    )
+    assert content.time == 1719502000.0
+
+
+def test_vprogram_content_published_ports_are_strict():
+    resources = {
+        "vcpus": 2,
+        "memory": 2048,
+        "seconds": 30,
+    }
+    for coerced_port in ("8080", 8080.0, True):
+        resources["published_ports"] = [{"port": coerced_port}]
+        with pytest.raises(ValidationError):
+            VerifiableProgramContent.model_validate(
+                make_vprogram_content(resources=resources)
+            )
+    resources["published_ports"] = [{"port": 8080}]
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(resources=resources)
+    )
+    assert content.resources.published_ports[0].port == 8080
+
+
+def test_vprogram_content_dump_is_canonically_stable():
+    """Pin the canonical serialization of the fixture content.
+
+    Publishers build item_content from a model dump, so a pydantic upgrade
+    or a refactor that reorders a re-declared field would silently shift
+    item hashes, and only mainnet would notice. Recompute the constant only
+    for a deliberate wire-format change.
+    """
+    fixture = json.loads(
+        (Path(__file__).parent / "messages/vprogram_machine.json").read_text()
+    )
+    content = VerifiableProgramContent.model_validate(fixture["content"])
+    canonical = json.dumps(content.model_dump(mode="json"), separators=(",", ":"))
+    assert (
+        hashlib.sha256(canonical.encode()).hexdigest()
+        == "f000190128ecf15a2af584eb4760cab34e1f55b6474d65235370dd712b8e1063"
+    )
 
 
 def test_vprogram_message_machine():

@@ -6,19 +6,25 @@ Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 
 from __future__ import annotations
 
-from typing import List, Literal
+from typing import List, Literal, Optional
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, StrictBool, model_validator
 from typing_extensions import Self
 
-from ..abstract import HashableModel
+from ...utils import Mebibytes
+from ..abstract import MAX_CONTENT_TIME, HashableModel
 from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
 from .base import Payment
 from .environment import (
     DEFAULT_SNP_POLICY,
     MAX_MEASUREMENTS,
+    MAX_MEMORY_MIB,
+    MAX_SECONDS,
+    MAX_VCPUS,
     LaunchMeasurement,
+    MachineResources,
+    PublishedPort,
     validate_snp_policy,
 )
 
@@ -28,6 +34,42 @@ VERITY_ROOTHASH_PATTERN = r"^[0-9a-f]{64}$"
 # Bounded by the kernel cmdline budget: each roothash costs ~65 bytes in the
 # measured verified_volumes= slot.
 MAX_VERIFIED_VOLUMES = 8
+
+
+# Serde-parity strict scalars.
+#
+# The CCN (pyaleph) validates content with these models but stores and serves
+# the RAW item_content dict, so any pydantic coercion it performs ("1" -> 1,
+# 196608.0 -> 196608, "true" -> True) yields a processed message that strict
+# decoders (the aleph-rs SDK, serde) cannot parse. A single such message used
+# to poison every page-strict history fetch (aleph-rs#386). V-PROGRAM scalar
+# fields therefore accept exactly what serde accepts: JSON integers for int
+# fields, true/false for bools, int-or-float for time. Nothing unverifiable
+# gets network blessing, and nothing network-blessed is undecodable.
+
+
+class StrictPublishedPort(PublishedPort):
+    """PublishedPort with serde-strict port (see module note above)."""
+
+    port: int = Field(
+        strict=True,
+        ge=1,
+        le=65535,
+        description="Port open on by the program and to be exposed",
+    )
+
+
+class StrictMachineResources(MachineResources):
+    """MachineResources with serde-strict scalars (see module note above)."""
+
+    vcpus: int = Field(default=1, strict=True, ge=1, le=MAX_VCPUS)
+    memory: Mebibytes = Field(
+        default=Mebibytes(128), strict=True, ge=1, le=MAX_MEMORY_MIB
+    )
+    seconds: int = Field(default=1, strict=True, ge=1, le=MAX_SECONDS)
+    published_ports: Optional[List[StrictPublishedPort]] = Field(  # type: ignore[assignment]
+        default=None, description="IPv4 ports to map to open ports on the host."
+    )
 
 
 class VerifiableProgramRuntime(HashableModel):
@@ -94,6 +136,7 @@ class TeeVerification(HashableModel):
     backend: Literal["sev_snp"] = Field(description="TEE backend the VM launches with")
     policy: int = Field(
         default=DEFAULT_SNP_POLICY,
+        strict=True,
         ge=0,
         lt=1 << 64,
         description="SEV-SNP 64-bit guest policy (not SEV bit semantics)",
@@ -115,7 +158,7 @@ class TeeVerification(HashableModel):
 class VerifiableProgramEnvironment(HashableModel):
     """Execution environment flags. The hypervisor is always QEMU."""
 
-    internet: bool = False
+    internet: StrictBool = False
 
     model_config = ConfigDict(extra="forbid")
 
@@ -140,6 +183,12 @@ class VerifiableProgramContent(BaseExecutableContent):
     an explicit redeployment: publish a new message, clients re-target it.
     """
 
+    # Serde-parity overrides of inherited lax scalars (see module note above
+    # the strict resource models): a coerced value would be stored raw by the
+    # CCN and become undecodable to strict readers.
+    time: float = Field(strict=True, ge=0, le=MAX_CONTENT_TIME)
+    allow_amend: StrictBool = Field(description="Allow amends to update this function")
+    resources: StrictMachineResources = Field(description="System resources required")
     payment: Payment = Field(description="Payment details; V-Programs are credit-only")
     # VerifiableProgramEnvironment is deliberately not a member of the
     # Function/InstanceEnvironment union on BaseExecutableContent: V-Programs
