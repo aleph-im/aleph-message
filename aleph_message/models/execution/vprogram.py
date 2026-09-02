@@ -154,6 +154,19 @@ class TeeVerification(HashableModel):
         validate_snp_policy(self.policy)
         return self
 
+    @model_validator(mode="after")
+    def check_measurements_platform(self) -> Self:
+        # The register-model union is discriminated on `platform`; a
+        # measurement for another TEE says nothing about this backend.
+        for i, measurement in enumerate(self.measurements):
+            if measurement.platform.value != self.backend:
+                raise ValueError(
+                    f"measurements[{i}] declares platform "
+                    f"{measurement.platform.value!r}, which does not match "
+                    f"backend {self.backend!r}"
+                )
+        return self
+
 
 class VerifiableProgramEnvironment(HashableModel):
     """Execution environment flags. The hypervisor is always QEMU."""

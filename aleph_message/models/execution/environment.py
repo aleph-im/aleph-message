@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Annotated, List, Literal, Optional, Union
+from typing import Annotated, Dict, List, Literal, Optional, Union
 
 from pydantic import (
     ConfigDict,
@@ -196,11 +196,12 @@ def validate_snp_policy(policy: int) -> None:
 class TeePlatform(str, Enum):
     """TEE platforms with a defined launch-measurement semantics.
 
-    Grows over protocol upgrades (e.g. "tdx" with MRTD digests). Unknown
-    platforms are schema-invalid: nothing unverifiable gets network blessing.
+    Grows over protocol upgrades. Unknown platforms are schema-invalid:
+    nothing unverifiable gets network blessing.
     """
 
     sev_snp = "sev_snp"
+    tdx = "tdx"
 
 
 # Every pinned register is a 48-byte SHA-384 value.
@@ -222,18 +223,44 @@ class SevSnpRegisters(HashableModel):
     A TEE's launch identity is not always a single value. SEV-SNP has one
     launch digest, but platforms such as Intel TDX spread it over several
     hardware registers (MRTD plus RTMRs), which is why the wire shape is an
-    object rather than a scalar. Only SEV-SNP is defined today, so this is a
-    concrete model rather than a generic map: `extra="forbid"` plus a required
-    field give the closed key set natively, with no validator to keep in step.
-
-    Adding a platform turns `LaunchMeasurement.registers` into a union
-    discriminated on `platform`. That is a schema release either way, since an
-    unknown platform is already schema-invalid.
+    object rather than a scalar. Each platform gets a concrete model rather
+    than a generic map: `extra="forbid"` plus required fields give the closed
+    key set natively, with no validator to keep in step.
     """
 
     launch: RegisterValue
 
     model_config = ConfigDict(extra="forbid")
+
+
+class TdxRegisters(HashableModel):
+    """The measurement registers Intel TDX pins: firmware, boot chain, config.
+
+    The pinned set is `{mrtd, rtmr1, rtmr2, mrconfigid}`. `rtmr0` is
+    deliberately absent: TDVF extends the VMM-supplied memory layout and the
+    variable store into it, which are deployment parameters, not code
+    identity. `rtmr3` is absent because it
+    carries the launch-TCB commitment, which a verifier *derives* rather than
+    compares against a declared constant; keeping it out of the schema lets
+    enforcement harden later without a protocol change.
+    """
+
+    mrtd: RegisterValue
+    rtmr1: RegisterValue
+    rtmr2: RegisterValue
+    mrconfigid: RegisterValue
+
+    model_config = ConfigDict(extra="forbid")
+
+
+# Which register model each platform declares. `LaunchMeasurement.registers`
+# is discriminated on the sibling `platform` field: the union member key sets
+# are disjoint, so parsing is unambiguous, and `check_registers_platform`
+# enforces that the parsed member matches the declared platform.
+_PLATFORM_REGISTERS: Dict[TeePlatform, type] = {
+    TeePlatform.sev_snp: SevSnpRegisters,
+    TeePlatform.tdx: TdxRegisters,
+}
 
 
 class LaunchMeasurement(HashableModel):
@@ -245,8 +272,11 @@ class LaunchMeasurement(HashableModel):
     """
 
     platform: TeePlatform
-    registers: SevSnpRegisters = Field(
-        description="Expected measurement registers; sev_snp declares {'launch'}",
+    registers: Union[SevSnpRegisters, TdxRegisters] = Field(
+        description=(
+            "Expected measurement registers; sev_snp declares {'launch'}, "
+            "tdx declares {'mrtd', 'rtmr1', 'rtmr2', 'mrconfigid'}"
+        ),
     )
     vcpu_type: Optional[str] = Field(
         default=None,
@@ -259,17 +289,32 @@ class LaunchMeasurement(HashableModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="after")
+    def check_registers_platform(self) -> "LaunchMeasurement":
+        expected = _PLATFORM_REGISTERS[self.platform]
+        if not isinstance(self.registers, expected):
+            raise ValueError(
+                f"platform {self.platform.value!r} declares "
+                f"{expected.__name__} registers, got "
+                f"{type(self.registers).__name__}"
+            )
+        return self
+
 
 class TrustedExecutionEnvironment(HashableModel):
     """Trusted Execution Environment properties.
 
-    Two modes coexist:
+    Two families of modes coexist:
     - mode None or "sev" (legacy): AMD SEV/SEV-ES with the CRN-mediated
       launch-secret flow; `firmware` references the confidential OVMF and
       `policy` uses AMD SEV bit semantics (AMDSEVPolicy).
-    - mode "sev_snp": measured boot from a runtime bundle with direct
-      client-to-guest attestation; `policy` uses SEV-SNP 64-bit semantics
-      and `measurements` carry the expected measurement registers.
+    - measured modes ("sev_snp", "tdx"): measured boot from a runtime bundle
+      with direct client-to-guest attestation; `measurements` carry the
+      expected measurement registers. In "sev_snp" mode `policy` uses the
+      SEV-SNP 64-bit guest-policy semantics. In "tdx" mode there is no
+      host-chosen launch policy at all (TDATTRIBUTES and XFAM are set by the
+      TDX module and measured, not selected), so `policy` must be left at
+      its default.
     """
 
     firmware: Optional[ItemHash] = Field(
@@ -282,25 +327,27 @@ class TrustedExecutionEnvironment(HashableModel):
             "no debugging); SEV-SNP 64-bit guest policy in sev_snp mode."
         ),
     )
-    mode: Optional[Literal["sev", "sev_snp"]] = Field(
+    mode: Optional[Literal["sev", "sev_snp", "tdx"]] = Field(
         default=None,
         description="TEE mode; None means legacy SEV (kept for wire stability)",
     )
     runtime: Optional[ItemHash] = Field(
         default=None,
-        description="Measured runtime bundle store message (sev_snp mode only)",
+        description="Measured runtime bundle store message (measured modes only)",
     )
     measurements: Optional[List[LaunchMeasurement]] = Field(
         default=None,
         max_length=MAX_MEASUREMENTS,
-        description="Expected measurement registers (sev_snp mode only); CCN-validated",
+        description=(
+            "Expected measurement registers (measured modes only); CCN-validated"
+        ),
     )
     attestation_port: Optional[int] = Field(
         default=None,
         ge=1,
         le=65535,
         description=(
-            "In-guest attestation port (sev_snp mode only); None means the "
+            "In-guest attestation port (measured modes only); None means the "
             "runtime bundle default (8443)"
         ),
     )
@@ -311,23 +358,48 @@ class TrustedExecutionEnvironment(HashableModel):
     def is_snp(self) -> bool:
         return self.mode == "sev_snp"
 
+    @property
+    def is_measured(self) -> bool:
+        """Measured-boot modes: runtime bundle plus declared registers."""
+        return self.mode in ("sev_snp", "tdx")
+
     @model_validator(mode="after")
     def check_mode_consistency(self) -> "TrustedExecutionEnvironment":
-        if self.is_snp:
+        if self.is_measured:
             if self.firmware is not None:
                 raise ValueError(
                     "firmware belongs to the SEV flow and must not be set in "
-                    "sev_snp mode; use runtime instead"
+                    f"{self.mode} mode; use runtime instead"
                 )
             if self.runtime is None:
-                raise ValueError("sev_snp mode requires runtime")
+                raise ValueError(f"{self.mode} mode requires runtime")
             if not self.measurements:
-                raise ValueError("sev_snp mode requires measurements")
-            validate_snp_policy(self.policy)
+                raise ValueError(f"{self.mode} mode requires measurements")
+            for i, measurement in enumerate(self.measurements):
+                if measurement.platform.value != self.mode:
+                    raise ValueError(
+                        f"measurements[{i}] declares platform "
+                        f"{measurement.platform.value!r}, which does not match "
+                        f"mode {self.mode!r}"
+                    )
+            if self.mode == "sev_snp":
+                validate_snp_policy(self.policy)
+            else:
+                # TDX has no host-chosen launch policy: TDATTRIBUTES and XFAM
+                # are set by the TDX module and measured, not selected. Reject
+                # any non-default value rather than inventing a meaning.
+                if self.policy != AMDSEVPolicy.NO_DBG:
+                    raise ValueError(
+                        "tdx mode has no host-chosen launch policy; "
+                        "policy must be left at its default"
+                    )
         else:
             for field_name in ("runtime", "measurements", "attestation_port"):
                 if getattr(self, field_name) is not None:
-                    raise ValueError(f"{field_name} is only valid in sev_snp mode")
+                    raise ValueError(
+                        f"{field_name} is only valid in the measured TEE modes "
+                        "(sev_snp, tdx)"
+                    )
         return self
 
 
