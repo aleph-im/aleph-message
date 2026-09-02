@@ -20,6 +20,7 @@ from aleph_message.models.base import MessageType
 from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
     LaunchMeasurement,
+    TdxRegisters,
     TeePlatform,
     TrustedExecutionEnvironment,
     validate_snp_policy,
@@ -36,6 +37,16 @@ from aleph_message.models.execution.vprogram import (
 
 SNP_DIGEST = "ab" * 48  # 96 hex chars, 48 bytes
 SHA256_HEX = "cd" * 32  # 64 hex chars
+
+
+def tdx_registers() -> dict:
+    # The pinned TDX set: {mrtd, rtmr1, rtmr2, mrconfigid}, all SHA-384-sized
+    return {
+        "mrtd": "11" * 48,
+        "rtmr1": "22" * 48,
+        "rtmr2": "33" * 48,
+        "mrconfigid": "44" * 48,
+    }
 
 
 def test_message_type_v_program():
@@ -105,7 +116,8 @@ def test_launch_measurement_register_values_are_type_constrained():
         LaunchMeasurement(platform="sev_snp", registers={"launch": "zz" * 48})
     error = exc.value.errors()[0]
     assert error["type"] == "string_pattern_mismatch"
-    assert error["loc"] == ("registers", "launch")
+    # the union member name sits between the field and the register
+    assert error["loc"] == ("registers", "SevSnpRegisters", "launch")
 
 
 def test_launch_measurement_schema_exposes_register_constraints():
@@ -124,7 +136,7 @@ def test_launch_measurement_schema_exposes_register_constraints():
 def test_launch_measurement_rejects_unknown_platform():
     # unknown platforms are schema-invalid until a protocol upgrade adds them
     with pytest.raises(ValidationError):
-        LaunchMeasurement(platform="tdx", registers={"launch": SNP_DIGEST})
+        LaunchMeasurement(platform="sgx", registers={"launch": SNP_DIGEST})
 
 
 def test_launch_measurement_rejects_legacy_digest_field():
@@ -142,6 +154,55 @@ def test_launch_measurement_forbids_extra_fields():
         LaunchMeasurement(
             platform="sev_snp", registers={"launch": SNP_DIGEST}, extra_field=1
         )
+
+
+def test_launch_measurement_tdx_valid():
+    m = LaunchMeasurement(
+        platform=TeePlatform.tdx, registers=tdx_registers(), vcpu_type="GraniteRapids"
+    )
+    assert m.platform is TeePlatform.tdx
+    assert isinstance(m.registers, TdxRegisters)
+    assert m.registers.mrtd == "11" * 48
+    assert m.registers.mrconfigid == "44" * 48
+    # vcpu_type stays optional on TDX too
+    assert (
+        LaunchMeasurement(platform="tdx", registers=tdx_registers()).vcpu_type is None
+    )
+
+
+def test_launch_measurement_tdx_key_set_is_closed():
+    """The TDX register set is exactly {mrtd, rtmr1, rtmr2, mrconfigid}.
+
+    rtmr0 (deployment parameters) and rtmr3 (derived launch-TCB commitment)
+    are deliberately not pinnable: declaring them is schema-invalid.
+    """
+    for missing in ("mrtd", "rtmr1", "rtmr2", "mrconfigid"):
+        registers = tdx_registers()
+        del registers[missing]
+        with pytest.raises(ValidationError):
+            LaunchMeasurement(platform="tdx", registers=registers)
+    for forbidden in ("rtmr0", "rtmr3", "launch"):
+        with pytest.raises(ValidationError):
+            LaunchMeasurement(
+                platform="tdx", registers={**tdx_registers(), forbidden: SNP_DIGEST}
+            )
+
+
+def test_launch_measurement_platform_must_match_registers():
+    """The union is discriminated on `platform`: cross-wiring is invalid."""
+    with pytest.raises(ValidationError, match="does not match|SevSnpRegisters"):
+        LaunchMeasurement(platform="sev_snp", registers=tdx_registers())
+    with pytest.raises(ValidationError, match="does not match|TdxRegisters"):
+        LaunchMeasurement(platform="tdx", registers={"launch": SNP_DIGEST})
+
+
+def test_launch_measurement_schema_exposes_tdx_constraints():
+    schema = LaunchMeasurement.model_json_schema()
+    registers = schema["$defs"]["TdxRegisters"]
+    assert registers["required"] == ["mrtd", "rtmr1", "rtmr2", "mrconfigid"]
+    assert registers["additionalProperties"] is False
+    for register in registers["required"]:
+        assert registers["properties"][register]["pattern"] == r"^[0-9a-f]{96}$"
 
 
 def test_validate_snp_policy():
@@ -214,6 +275,15 @@ def test_tee_verification_rejects_negative_policy():
             measurements=[
                 LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})
             ],
+        )
+
+
+def test_tee_verification_rejects_foreign_platform_measurements():
+    # a TDX measurement says nothing about an sev_snp backend
+    with pytest.raises(ValidationError, match="does not match backend"):
+        TeeVerification(
+            backend="sev_snp",
+            measurements=[LaunchMeasurement(platform="tdx", registers=tdx_registers())],
         )
 
 
@@ -544,6 +614,75 @@ def test_trusted_execution_sev_forbids_snp_fields():
             TrustedExecutionEnvironment.model_validate({"policy": 1, **extra})
 
 
+def make_tdx_tee(**overrides) -> dict:
+    tee = {
+        "mode": "tdx",
+        "runtime": ITEM_HASH,
+        "measurements": [{"platform": "tdx", "registers": tdx_registers()}],
+    }
+    tee.update(overrides)
+    return tee
+
+
+def test_trusted_execution_tdx_valid():
+    tee = TrustedExecutionEnvironment.model_validate(make_tdx_tee())
+    assert tee.is_measured is True
+    assert tee.is_snp is False
+    assert tee.runtime == ITEM_HASH
+    assert tee.measurements[0].platform is TeePlatform.tdx
+    assert isinstance(tee.measurements[0].registers, TdxRegisters)
+    # attestation_port belongs to the measured modes, tdx included
+    tee = TrustedExecutionEnvironment.model_validate(
+        make_tdx_tee(attestation_port=8443)
+    )
+    assert tee.attestation_port == 8443
+
+
+def test_trusted_execution_tdx_requires_fields():
+    for missing in ("runtime", "measurements"):
+        tee = make_tdx_tee()
+        del tee[missing]
+        with pytest.raises(ValidationError, match=missing):
+            TrustedExecutionEnvironment.model_validate(tee)
+
+
+def test_trusted_execution_tdx_forbids_firmware():
+    with pytest.raises(ValidationError, match="firmware"):
+        TrustedExecutionEnvironment.model_validate(make_tdx_tee(firmware=ITEM_HASH))
+
+
+def test_trusted_execution_tdx_has_no_policy():
+    """TDX has no host-chosen launch policy: TDATTRIBUTES and XFAM are
+    measured, not selected. Any non-default value is rejected rather than
+    given an invented meaning; the serialized default must keep round-tripping.
+    """
+    with pytest.raises(ValidationError, match="no host-chosen launch policy"):
+        TrustedExecutionEnvironment.model_validate(make_tdx_tee(policy=0x30000))
+    # the pydantic default (the legacy SEV NO_DBG bit) round-trips: a dump
+    # carries policy=1 and must reparse
+    tee = TrustedExecutionEnvironment.model_validate(make_tdx_tee())
+    reparsed = TrustedExecutionEnvironment.model_validate(tee.model_dump())
+    assert reparsed == tee
+
+
+def test_trusted_execution_measurement_platform_must_match_mode():
+    # an sev_snp measurement under tdx mode (and vice versa) is incoherent
+    with pytest.raises(ValidationError, match="does not match"):
+        TrustedExecutionEnvironment.model_validate(
+            make_tdx_tee(
+                measurements=[
+                    {"platform": "sev_snp", "registers": {"launch": SNP_DIGEST}}
+                ]
+            )
+        )
+    with pytest.raises(ValidationError, match="does not match"):
+        TrustedExecutionEnvironment.model_validate(
+            make_snp_tee(
+                measurements=[{"platform": "tdx", "registers": tdx_registers()}]
+            )
+        )
+
+
 def make_snp_instance_content(payment: dict) -> dict:
     return {
         "address": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
@@ -579,6 +718,18 @@ def test_snp_instance_requires_credit_payment():
         InstanceContent.model_validate(
             make_snp_instance_content(payment={"type": "superfluid", "chain": "AVAX"})
         )
+
+
+def test_tdx_instance_requires_credit_payment():
+    content_dict = make_snp_instance_content(payment={"type": "credit"})
+    content_dict["environment"]["trusted_execution"] = make_tdx_tee()
+    content = InstanceContent.model_validate(content_dict)
+    assert content.environment.trusted_execution.is_measured
+
+    content_dict = make_snp_instance_content(payment={"type": "hold"})
+    content_dict["environment"]["trusted_execution"] = make_tdx_tee()
+    with pytest.raises(ValidationError, match="credit"):
+        InstanceContent.model_validate(content_dict)
 
 
 def test_legacy_sev_instance_payment_unrestricted():
