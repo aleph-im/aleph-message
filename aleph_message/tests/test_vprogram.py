@@ -397,6 +397,76 @@ def test_vprogram_content_caps_verified_volumes():
         )
 
 
+CONFIDENTIAL_GPU = {"vendor": "nvidia", "device_id": "10de:2b85"}
+
+
+def test_vprogram_content_gpus_default_empty():
+    content = VerifiableProgramContent.model_validate(make_vprogram_content())
+    assert content.gpus == []
+
+
+def test_vprogram_content_accepts_one_confidential_gpu():
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(gpus=[CONFIDENTIAL_GPU])
+    )
+    assert content.gpus[0].vendor == "nvidia"
+    assert content.gpus[0].device_id == "10de:2b85"
+
+
+def test_vprogram_content_caps_confidential_gpus():
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(
+                gpus=[CONFIDENTIAL_GPU] * 2
+            )  # MAX_CONFIDENTIAL_GPUS + 1
+        )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"vendor": "amd", "device_id": "1002:744c"},
+        {"vendor": "NVIDIA", "device_id": "10de:2b85"},
+        {"vendor": "nvidia", "device_id": "10DE:2B85"},
+        {"vendor": "nvidia", "device_id": "2b85"},
+        {"vendor": "nvidia", "device_id": "10de:2b85", "pci_host": "06:00.0"},
+        {"vendor": "nvidia"},
+    ],
+)
+def test_confidential_gpu_rejects_malformed(bad):
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(make_vprogram_content(gpus=[bad]))
+
+
+def test_vprogram_content_refuses_inherited_gpu_requirements():
+    """`requirements.gpu` is the unverified instance channel; a V-PROGRAM asks
+    for a GPU through `gpus` only, or it is not a confidential request."""
+    with pytest.raises(ValidationError, match="gpus"):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(
+                requirements={
+                    "gpu": [
+                        {
+                            "vendor": "NVIDIA",
+                            "device_name": "NVIDIA H100",
+                            "device_class": "0300",
+                            "device_id": "10de:2504",
+                        }
+                    ]
+                }
+            )
+        )
+
+
+def test_confidential_gpu_schema_exposes_constraints():
+    schema = VerifiableProgramContent.model_json_schema()
+    gpu = schema["$defs"]["ConfidentialGpu"]
+    assert gpu["properties"]["device_id"]["pattern"] == r"^[0-9a-f]{4}:[0-9a-f]{4}$"
+    assert gpu["properties"]["vendor"]["const"] == "nvidia"
+    assert gpu["additionalProperties"] is False
+    assert schema["properties"]["gpus"]["maxItems"] == 1
+
+
 def test_vprogram_content_rejects_unmeasured_inputs():
     with pytest.raises(ValidationError, match="variables"):
         VerifiableProgramContent.model_validate(
@@ -505,6 +575,8 @@ def test_vprogram_content_dump_is_canonically_stable():
     or a refactor that reorders a re-declared field would silently shift
     item hashes, and only mainnet would notice. Recompute the constant only
     for a deliberate wire-format change.
+
+    Recomputed 2026-09 when the gpus field was added.
     """
     fixture = json.loads(
         (Path(__file__).parent / "messages/vprogram_machine.json").read_text()
@@ -513,7 +585,7 @@ def test_vprogram_content_dump_is_canonically_stable():
     canonical = json.dumps(content.model_dump(mode="json"), separators=(",", ":"))
     assert (
         hashlib.sha256(canonical.encode()).hexdigest()
-        == "f000190128ecf15a2af584eb4760cab34e1f55b6474d65235370dd712b8e1063"
+        == "89d71be3bf365a90ca4a4e0d0000cbf8b10675a4e97bac8cba0005adbe4a4b49"
     )
 
 
