@@ -34,6 +34,13 @@ VERITY_ROOTHASH_PATTERN = r"^[0-9a-f]{64}$"
 # Bounded by the kernel cmdline budget: each roothash costs ~65 bytes in the
 # measured verified_volumes= slot.
 MAX_VERIFIED_VOLUMES = 8
+# One GPU per confidential VM: single-GPU passthrough is the only NVIDIA CC
+# mode validated on the RTX PRO 6000 Blackwell Server Edition (no NVLink).
+MAX_CONFIDENTIAL_GPUS = 1
+# Lowercase PCI vendor:device ids, the string the CRN inventory and the
+# settings aggregate's compatible_gpus use, so one id names a card kind
+# everywhere.
+CONFIDENTIAL_GPU_DEVICE_ID_PATTERN = r"^[0-9a-f]{4}:[0-9a-f]{4}$"
 
 
 # Serde-parity strict scalars.
@@ -126,6 +133,26 @@ class VerifiedVolume(HashableModel):
         description="dm-verity root hash (sha256, lowercase hex); measured via cmdline",
     )
     comment: str = Field(default="", max_length=MAX_RUNTIME_COMMENT_LENGTH)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ConfidentialGpu(HashableModel):
+    """One GPU that must be attached in confidential-computing mode.
+
+    Names a kind of card, never a concrete device: the CRN resolves the id
+    against the cards it probed in CC mode. What a client pins about the
+    GPU (architecture, driver version) lives in the runtime manifest, not
+    here, because those are properties of the measured runtime.
+    """
+
+    vendor: Literal["nvidia"] = Field(
+        description="GPU vendor with a confidential-computing mode"
+    )
+    device_id: str = Field(
+        pattern=CONFIDENTIAL_GPU_DEVICE_ID_PATTERN,
+        description="PCI vendor:device id, lowercase hex, e.g. 10de:2b85",
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -225,11 +252,28 @@ class VerifiableProgramContent(BaseExecutableContent):
         max_length=MAX_VERIFIED_VOLUMES,
         description="Extra read-only volumes, verity-bound via the measured cmdline",
     )
+    # Confidential GPUs only: a plain passthrough GPU has no attestation and
+    # would be host-controlled hardware inside an attested VM. Optional
+    # rather than defaulted, because an absent field and an empty list both
+    # mean "no GPU": check_content compares the dump to the signed
+    # item_content, and messages signed before this field existed must keep
+    # parsing without it.
+    gpus: Optional[List[ConfidentialGpu]] = Field(
+        default=None,
+        max_length=MAX_CONFIDENTIAL_GPUS,
+        description="GPUs to attach in confidential-computing mode; at most one",
+    )
 
     @property
     def is_confidential(self) -> bool:
         """V-Programs always run in a confidential VM."""
         return True
+
+    # gpu_requirements (inherited, reads requirements.gpu) stays empty on
+    # V-Programs by design: ConfidentialGpu is not a GpuProperties.
+    @property
+    def requires_gpu(self) -> bool:
+        return bool(self.gpus)
 
     @model_validator(mode="after")
     def check_payment_is_credit(self) -> Self:
@@ -262,5 +306,11 @@ class VerifiableProgramContent(BaseExecutableContent):
             raise ValueError(
                 "authorized_keys are not supported for V-Programs: host key "
                 "injection has no place in an attested VM"
+            )
+        if self.requirements is not None and self.requirements.gpu:
+            raise ValueError(
+                "requirements.gpu is not supported for V-Programs: an "
+                "unattested passthrough GPU has no place in an attested VM; "
+                "declare the card in gpus instead"
             )
         return self

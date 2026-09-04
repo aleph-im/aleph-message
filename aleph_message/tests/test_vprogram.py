@@ -27,6 +27,7 @@ from aleph_message.models.execution.environment import (
 )
 from aleph_message.models.execution.instance import InstanceContent
 from aleph_message.models.execution.vprogram import (
+    MAX_CONFIDENTIAL_GPUS,
     TeeVerification,
     VerifiableProgramContent,
     VerifiableProgramEnvironment,
@@ -397,6 +398,93 @@ def test_vprogram_content_caps_verified_volumes():
         )
 
 
+CONFIDENTIAL_GPU = {"vendor": "nvidia", "device_id": "10de:2b85"}
+
+
+def test_vprogram_content_gpus_default_empty():
+    content = VerifiableProgramContent.model_validate(make_vprogram_content())
+    assert content.gpus is None
+    assert content.requires_gpu is False
+
+
+def test_vprogram_content_accepts_one_confidential_gpu():
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(gpus=[CONFIDENTIAL_GPU])
+    )
+    assert content.gpus[0].vendor == "nvidia"
+    assert content.gpus[0].device_id == "10de:2b85"
+    assert content.requires_gpu is True
+
+
+def test_vprogram_content_caps_confidential_gpus():
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(gpus=[CONFIDENTIAL_GPU] * (MAX_CONFIDENTIAL_GPUS + 1))
+        )
+
+
+def test_vprogram_message_without_gpus_key_still_parses():
+    # Messages signed before the gpus field existed carry no such key: an
+    # absent field must still parse, since check_content compares the dump
+    # to the signed item_content.
+    path = Path(__file__).parent / "messages/vprogram_machine.json"
+    message_dict = json.loads(path.read_text())
+    add_item_content_and_hash(message_dict, inplace=True)
+    message = parse_message(message_dict)
+    assert isinstance(message, VerifiableProgramMessage)
+    assert message.content.gpus is None
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"vendor": "amd", "device_id": "1002:744c"},
+        {"vendor": "NVIDIA", "device_id": "10de:2b85"},
+        {"vendor": "nvidia", "device_id": "10DE:2B85"},
+        {"vendor": "nvidia", "device_id": "2b85"},
+        {"vendor": "nvidia", "device_id": "10de:2b85", "pci_host": "06:00.0"},
+        {"vendor": "nvidia"},
+        {"device_id": "10de:2b85"},
+    ],
+)
+def test_confidential_gpu_rejects_malformed(bad):
+    with pytest.raises(ValidationError):
+        VerifiableProgramContent.model_validate(make_vprogram_content(gpus=[bad]))
+
+
+def test_vprogram_content_refuses_inherited_gpu_requirements():
+    """`requirements.gpu` is the unverified instance channel; a V-PROGRAM asks
+    for a GPU through `gpus` only, or it is not a confidential request."""
+    with pytest.raises(ValidationError, match="gpus"):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(
+                requirements={
+                    "gpu": [
+                        {
+                            "vendor": "NVIDIA",
+                            "device_name": "NVIDIA H100",
+                            "device_class": "0300",
+                            "device_id": "10de:2504",
+                        }
+                    ]
+                }
+            )
+        )
+
+
+def test_confidential_gpu_schema_exposes_constraints():
+    schema = VerifiableProgramContent.model_json_schema()
+    gpu = schema["$defs"]["ConfidentialGpu"]
+    assert gpu["properties"]["device_id"]["pattern"] == r"^[0-9a-f]{4}:[0-9a-f]{4}$"
+    assert gpu["properties"]["vendor"]["const"] == "nvidia"
+    assert gpu["additionalProperties"] is False
+    # gpus is Optional, so pydantic wraps its schema in anyOf[array, null]
+    # instead of putting maxItems directly on the properties.gpus object.
+    gpus_variants = schema["properties"]["gpus"]["anyOf"]
+    array_schema = next(v for v in gpus_variants if v.get("type") == "array")
+    assert array_schema["maxItems"] == 1
+
+
 def test_vprogram_content_rejects_unmeasured_inputs():
     with pytest.raises(ValidationError, match="variables"):
         VerifiableProgramContent.model_validate(
@@ -505,6 +593,12 @@ def test_vprogram_content_dump_is_canonically_stable():
     or a refactor that reorders a re-declared field would silently shift
     item hashes, and only mainnet would notice. Recompute the constant only
     for a deliberate wire-format change.
+
+    Recomputed 2026-09 when the gpus field was added: gpus is optional
+    (default None) so the fixture never sets it, but model_dump() still
+    serializes the unset field as "gpus":null, same as every other optional
+    field on this model (metadata, requirements, replaces, ...), so the
+    dump still gains a key even without a GPU declared.
     """
     fixture = json.loads(
         (Path(__file__).parent / "messages/vprogram_machine.json").read_text()
@@ -513,7 +607,7 @@ def test_vprogram_content_dump_is_canonically_stable():
     canonical = json.dumps(content.model_dump(mode="json"), separators=(",", ":"))
     assert (
         hashlib.sha256(canonical.encode()).hexdigest()
-        == "f000190128ecf15a2af584eb4760cab34e1f55b6474d65235370dd712b8e1063"
+        == "9a1e914a2f63c8c99c08ae7910360cdd043c2591fd8efcf95ce1eb0b4523811d"
     )
 
 
