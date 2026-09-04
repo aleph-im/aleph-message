@@ -72,7 +72,9 @@ class ItemHash(str):
         )
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, schema) -> dict[str, Any]:
+    def __get_pydantic_json_schema__(
+        cls, core_schema: core_schema.CoreSchema, handler: Any
+    ) -> dict[str, Any]:
         """Pydantic v2 - JSON Schema Generation"""
         return {"type": "string"}
 

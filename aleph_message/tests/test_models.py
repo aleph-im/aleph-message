@@ -56,6 +56,7 @@ from aleph_message.models.execution.volume import (
     MAX_VOLUME_LABEL_LENGTH,
     EphemeralVolume,
 )
+from aleph_message.models.execution.vprogram import VerifiableProgramContent
 from aleph_message.tests.download_messages import MESSAGES_STORAGE_PATH
 
 console = Console(color_system="windows")
@@ -1089,3 +1090,12 @@ def test_instance_top_level_tags_rejected():
     message_dict["content"]["tags"] = ["alpha"]
     with pytest.raises(ValidationError):
         create_new_message(message_dict, factory=InstanceMessage)
+
+
+def test_verifiable_program_content_json_schema_includes_item_hash_fields():
+    # ItemHash.__get_pydantic_json_schema__ used to take only (cls, schema),
+    # while pydantic v2 calls it with (core_schema, handler); that mismatch
+    # made model_json_schema() raise TypeError for any content model with an
+    # ItemHash-typed field, VerifiableProgramContent included.
+    schema = VerifiableProgramContent.model_json_schema()
+    assert "gpus" in schema["properties"]
