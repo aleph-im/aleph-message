@@ -253,9 +253,13 @@ class VerifiableProgramContent(BaseExecutableContent):
         description="Extra read-only volumes, verity-bound via the measured cmdline",
     )
     # Confidential GPUs only: a plain passthrough GPU has no attestation and
-    # would be host-controlled hardware inside an attested VM.
-    gpus: List[ConfidentialGpu] = Field(
-        default=[],
+    # would be host-controlled hardware inside an attested VM. Optional
+    # rather than defaulted, because an absent field and an empty list both
+    # mean "no GPU": check_content compares the dump to the signed
+    # item_content, and messages signed before this field existed must keep
+    # parsing without it.
+    gpus: Optional[List[ConfidentialGpu]] = Field(
+        default=None,
         max_length=MAX_CONFIDENTIAL_GPUS,
         description="GPUs to attach in confidential-computing mode; at most one",
     )
@@ -264,6 +268,12 @@ class VerifiableProgramContent(BaseExecutableContent):
     def is_confidential(self) -> bool:
         """V-Programs always run in a confidential VM."""
         return True
+
+    # gpu_requirements (inherited, reads requirements.gpu) stays empty on
+    # V-Programs by design: ConfidentialGpu is not a GpuProperties.
+    @property
+    def requires_gpu(self) -> bool:
+        return bool(self.gpus)
 
     @model_validator(mode="after")
     def check_payment_is_credit(self) -> Self:
@@ -299,6 +309,8 @@ class VerifiableProgramContent(BaseExecutableContent):
             )
         if self.requirements is not None and self.requirements.gpu:
             raise ValueError(
-                "V-PROGRAMs request GPUs through `gpus`, not requirements.gpu"
+                "requirements.gpu is not supported for V-Programs: an "
+                "unattested passthrough GPU has no place in an attested VM; "
+                "declare the card in gpus instead"
             )
         return self

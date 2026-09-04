@@ -50,7 +50,6 @@
                 "roothash": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
                 "comment": "model weights"
             }
-        ],
-        "gpus": []
+        ]
     }
 }
