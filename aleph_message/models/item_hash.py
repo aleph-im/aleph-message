@@ -2,6 +2,7 @@ from enum import Enum
 from functools import lru_cache
 from typing import Any
 
+from pydantic import GetJsonSchemaHandler
 from pydantic_core import core_schema
 
 from ..exceptions import UnknownHashError
@@ -72,7 +73,9 @@ class ItemHash(str):
         )
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, schema) -> dict[str, Any]:
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> dict[str, Any]:
         """Pydantic v2 - JSON Schema Generation"""
         return {"type": "string"}
 
