@@ -49,6 +49,8 @@ from aleph_message.models.execution.abstract import (
 from aleph_message.models.execution.environment import (
     MAX_ADDRESS_REGEX_LENGTH,
     AMDSEVPolicy,
+    GpuDeviceClass,
+    GpuProperties,
     HypervisorType,
     NodeRequirements,
 )
@@ -217,6 +219,126 @@ def test_validation_on_confidential_options():
             e.errors()[0]["msg"]
             == "Value error, Trusted Execution Environment is only supported for QEmu"
         )
+
+
+# 64 hex chars, valid storage ItemHash
+SEV_SNP_ITEM_HASH = "cafe" * 16
+# 96 hex chars, 48 bytes: an SEV-SNP launch digest
+SEV_SNP_LAUNCH_DIGEST = "ab" * 48
+CONFIDENTIAL_GPU_HOPPER: Dict[str, Any] = {
+    "vendor": "nvidia",
+    "arch": "hopper",
+    "count": 1,
+    "mode": "cc",
+}
+
+
+def make_sev_snp_tee(**overrides: Any) -> Dict[str, Any]:
+    tee = {
+        "mode": "sev_snp",
+        "policy": 0x30000,
+        "runtime": SEV_SNP_ITEM_HASH,
+        "measurements": [
+            {"platform": "sev_snp", "registers": {"launch": SEV_SNP_LAUNCH_DIGEST}}
+        ],
+    }
+    tee.update(overrides)
+    return tee
+
+
+def make_tdx_tee(**overrides: Any) -> Dict[str, Any]:
+    tee = {
+        "mode": "tdx",
+        "runtime": SEV_SNP_ITEM_HASH,
+        "measurements": [
+            {
+                "platform": "tdx",
+                "registers": {
+                    "mrtd": "11" * 48,
+                    "rtmr1": "22" * 48,
+                    "rtmr2": "33" * 48,
+                    "mrconfigid": "44" * 48,
+                },
+            }
+        ],
+    }
+    tee.update(overrides)
+    return tee
+
+
+def make_measured_instance_content(trusted_execution: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "address": "0x9319Ad3B7A8E0eE24f2E639c40D8eD124C5520Ba",
+        "time": 1719502000.0,
+        "allow_amend": False,
+        "payment": {"type": "credit"},
+        "environment": {
+            "internet": True,
+            "aleph_api": False,
+            "hypervisor": "qemu",
+            "trusted_execution": trusted_execution,
+        },
+        "resources": {"vcpus": 2, "memory": 2048, "seconds": 30},
+        "rootfs": {
+            "parent": {"ref": SEV_SNP_ITEM_HASH, "use_latest": False},
+            "persistence": "host",
+            "size_mib": 4096,
+        },
+    }
+
+
+def test_sev_snp_instance_accepts_confidential_gpu():
+    content = InstanceContent.model_validate(
+        make_measured_instance_content(make_sev_snp_tee(gpu=CONFIDENTIAL_GPU_HOPPER))
+    )
+    assert content.environment.trusted_execution.gpu.arch == "hopper"
+
+
+def test_tdx_instance_rejects_gpu():
+    with pytest.raises(ValidationError, match="only supported in sev_snp"):
+        InstanceContent.model_validate(
+            make_measured_instance_content(make_tdx_tee(gpu=CONFIDENTIAL_GPU_HOPPER))
+        )
+
+
+def test_legacy_sev_instance_rejects_gpu():
+    with pytest.raises(ValidationError, match="only valid in the measured"):
+        InstanceContent.model_validate(
+            make_measured_instance_content(
+                {
+                    "policy": 1,
+                    "firmware": SEV_SNP_ITEM_HASH,
+                    "gpu": CONFIDENTIAL_GPU_HOPPER,
+                }
+            )
+        )
+
+
+def test_sev_snp_instance_gpu_exclusive_with_requirements_gpu():
+    content_dict = make_measured_instance_content(
+        make_sev_snp_tee(gpu=CONFIDENTIAL_GPU_HOPPER)
+    )
+    content_dict["requirements"] = {
+        "gpu": [
+            GpuProperties(
+                vendor="NVIDIA",
+                device_name="H100",
+                device_class=GpuDeviceClass.VGA_COMPATIBLE_CONTROLLER,
+                device_id="10de:2331",
+            )
+        ]
+    }
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        InstanceContent.model_validate(content_dict)
+
+
+def test_sev_snp_instance_dump_omits_absent_gpu():
+    content = InstanceContent.model_validate(
+        make_measured_instance_content(make_sev_snp_tee())
+    )
+    assert "gpu" not in content.environment.trusted_execution.model_dump(
+        exclude_none=True
+    )
 
 
 def test_instance_message_machine_with_gpu_options():

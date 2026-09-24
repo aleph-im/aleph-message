@@ -136,6 +136,81 @@ class GpuProperties(HashableModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# Ceiling of NVIDIA's multi-GPU passthrough CC mode (Blackwell HGX: 1, 2, 4
+# or 8 cards per confidential VM with encrypted NVLink). The CRN enforces the
+# smaller limit its own cards and driver validate, one card on the RTX PRO
+# 6000 Blackwell Server Edition.
+MAX_CONFIDENTIAL_GPUS = 8
+# Lowercase PCI vendor:device ids, the string the CRN inventory and the
+# settings aggregate's compatible_gpus use, so one id names a card kind
+# everywhere.
+CONFIDENTIAL_GPU_DEVICE_ID_PATTERN = r"^[0-9a-f]{4}:[0-9a-f]{4}$"
+# A narrowing list names card kinds, not cards; one entry per SKU is plenty.
+MAX_CONFIDENTIAL_GPU_MODELS = 16
+
+
+class ConfidentialGpuRequirement(HashableModel):
+    """GPUs to attach in confidential-computing mode: a family and a count.
+
+    Names a kind of card, never a concrete device: the CRN resolves the
+    requirement against the cards it probed in CC mode. The architecture is
+    what the client verifies from the GPU attestation itself (the device
+    certificate chain encodes it), so security never depends on the message
+    naming an exact model; `models` only narrows placement and pricing.
+    Driver and VBIOS pins live in the runtime manifest, properties of the
+    measured runtime. All cards share one architecture because that is the
+    only multi-GPU configuration NVIDIA supports inside a confidential VM.
+    """
+
+    vendor: Literal["nvidia"] = Field(
+        description="GPU vendor with a confidential-computing mode"
+    )
+    arch: Literal["hopper", "blackwell"] = Field(
+        description="GPU architecture family every attached card must belong to"
+    )
+    count: int = Field(
+        strict=True,
+        ge=1,
+        le=MAX_CONFIDENTIAL_GPUS,
+        description="Number of cards to attach, all of the same architecture",
+    )
+    models: Optional[List[str]] = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_CONFIDENTIAL_GPU_MODELS,
+        description=(
+            "Optional narrowing to specific card kinds, as lowercase PCI "
+            "vendor:device ids (e.g. 10de:2b85); absent means any card of the "
+            "architecture"
+        ),
+    )
+    # Required even though "cc" is the only value: check_content compares
+    # the model dump to the signed item_content, so a defaulted field would
+    # reject every hand-built content that omits it. Spelling it out also
+    # lets a weaker multi-GPU mode (Hopper's PPCIe, which leaves GPU-to-GPU
+    # links in the clear) join the enum later as an explicit opt-in.
+    mode: Literal["cc"] = Field(
+        description="Confidential-computing mode the cards must be in",
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("models")
+    @classmethod
+    def check_models(cls, models: Optional[List[str]]) -> Optional[List[str]]:
+        if models is None:
+            return None
+        for device_id in models:
+            if not re.fullmatch(CONFIDENTIAL_GPU_DEVICE_ID_PATTERN, device_id):
+                raise ValueError(
+                    f"models entries must be lowercase PCI vendor:device ids, "
+                    f"got {device_id!r}"
+                )
+        if len(set(models)) != len(models):
+            raise ValueError("models must not repeat a device id")
+        return models
+
+
 class HypervisorType(str, Enum):
     qemu = "qemu"
     firecracker = "firecracker"
@@ -351,6 +426,10 @@ class TrustedExecutionEnvironment(HashableModel):
             "runtime bundle default (8443)"
         ),
     )
+    gpu: Optional[ConfidentialGpuRequirement] = Field(
+        default=None,
+        description="GPUs to attach in confidential-computing mode (sev_snp mode only)",
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -382,6 +461,8 @@ class TrustedExecutionEnvironment(HashableModel):
                         f"{measurement.platform.value!r}, which does not match "
                         f"mode {self.mode!r}"
                     )
+            if self.gpu is not None and self.mode != "sev_snp":
+                raise ValueError("gpu is only supported in sev_snp mode")
             if self.mode == "sev_snp":
                 validate_snp_policy(self.policy)
             else:
@@ -394,7 +475,7 @@ class TrustedExecutionEnvironment(HashableModel):
                         "policy must be left at its default"
                     )
         else:
-            for field_name in ("runtime", "measurements", "attestation_port"):
+            for field_name in ("runtime", "measurements", "attestation_port", "gpu"):
                 if getattr(self, field_name) is not None:
                     raise ValueError(
                         f"{field_name} is only valid in the measured TEE modes "

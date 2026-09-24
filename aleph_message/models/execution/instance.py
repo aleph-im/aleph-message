@@ -53,6 +53,16 @@ class InstanceContent(BaseExecutableContent):
             # pinned with a node_hash, except for credit payments which are not
             # tied to a specific node.
             if self.requirements.gpu:
+                trusted_execution = (
+                    self.environment.trusted_execution if self.environment else None
+                )
+                if trusted_execution is not None and trusted_execution.gpu is not None:
+                    raise ValueError(
+                        "requirements.gpu and trusted_execution.gpu are mutually "
+                        "exclusive: a confidential instance declares its cards in "
+                        "trusted_execution.gpu"
+                    )
+
                 if not (self.payment and self.payment.is_credit) and (
                     not self.requirements.node or not self.requirements.node.node_hash
                 ):

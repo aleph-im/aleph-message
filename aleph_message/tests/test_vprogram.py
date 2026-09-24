@@ -20,6 +20,7 @@ from aleph_message.models import (
 from aleph_message.models.base import MessageType
 from aleph_message.models.execution.environment import (
     DEFAULT_SNP_POLICY,
+    ConfidentialGpuRequirement,
     LaunchMeasurement,
     TdxRegisters,
     TeePlatform,
@@ -536,6 +537,20 @@ def test_confidential_gpu_schema_exposes_constraints():
         v.get("$ref", "").endswith("ConfidentialGpuRequirement") for v in variants
     )
     assert any(v.get("type") == "null" for v in variants)
+
+
+def test_confidential_gpu_importable_from_vprogram():
+    # ConfidentialGpuRequirement moved to environment.py; the vprogram module
+    # must keep re-exporting it (and its constants) so existing imports work.
+    from aleph_message.models.execution.vprogram import (
+        MAX_CONFIDENTIAL_GPUS as reexported_max_gpus,
+    )
+    from aleph_message.models.execution.vprogram import (
+        ConfidentialGpuRequirement as ReexportedConfidentialGpuRequirement,
+    )
+
+    assert reexported_max_gpus == MAX_CONFIDENTIAL_GPUS
+    assert ReexportedConfidentialGpuRequirement is ConfidentialGpuRequirement
 
 
 def test_vprogram_content_rejects_unmeasured_inputs():
