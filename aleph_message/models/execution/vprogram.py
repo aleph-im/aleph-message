@@ -6,10 +6,9 @@ Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 
 from __future__ import annotations
 
-import re
 from typing import List, Literal, Optional
 
-from pydantic import ConfigDict, Field, StrictBool, field_validator, model_validator
+from pydantic import ConfigDict, Field, StrictBool, model_validator
 from typing_extensions import Self
 
 from ...utils import Mebibytes
@@ -18,11 +17,17 @@ from ..item_hash import ItemHash
 from .abstract import BaseExecutableContent
 from .base import Payment
 from .environment import (
-    DEFAULT_SNP_POLICY,
+    CONFIDENTIAL_GPU_DEVICE_ID_PATTERN as CONFIDENTIAL_GPU_DEVICE_ID_PATTERN,
+)
+from .environment import DEFAULT_SNP_POLICY
+from .environment import MAX_CONFIDENTIAL_GPU_MODELS as MAX_CONFIDENTIAL_GPU_MODELS
+from .environment import MAX_CONFIDENTIAL_GPUS as MAX_CONFIDENTIAL_GPUS
+from .environment import (
     MAX_MEASUREMENTS,
     MAX_MEMORY_MIB,
     MAX_SECONDS,
     MAX_VCPUS,
+    ConfidentialGpuRequirement,
     LaunchMeasurement,
     MachineResources,
     PublishedPort,
@@ -35,17 +40,6 @@ VERITY_ROOTHASH_PATTERN = r"^[0-9a-f]{64}$"
 # Bounded by the kernel cmdline budget: each roothash costs ~65 bytes in the
 # measured verified_volumes= slot.
 MAX_VERIFIED_VOLUMES = 8
-# Ceiling of NVIDIA's multi-GPU passthrough CC mode (Blackwell HGX: 1, 2, 4
-# or 8 cards per confidential VM with encrypted NVLink). The CRN enforces the
-# smaller limit its own cards and driver validate, one card on the RTX PRO
-# 6000 Blackwell Server Edition.
-MAX_CONFIDENTIAL_GPUS = 8
-# Lowercase PCI vendor:device ids, the string the CRN inventory and the
-# settings aggregate's compatible_gpus use, so one id names a card kind
-# everywhere.
-CONFIDENTIAL_GPU_DEVICE_ID_PATTERN = r"^[0-9a-f]{4}:[0-9a-f]{4}$"
-# A narrowing list names card kinds, not cards; one entry per SKU is plenty.
-MAX_CONFIDENTIAL_GPU_MODELS = 16
 
 
 # Serde-parity strict scalars.
@@ -140,68 +134,6 @@ class VerifiedVolume(HashableModel):
     comment: str = Field(default="", max_length=MAX_RUNTIME_COMMENT_LENGTH)
 
     model_config = ConfigDict(extra="forbid")
-
-
-class ConfidentialGpuRequirement(HashableModel):
-    """GPUs to attach in confidential-computing mode: a family and a count.
-
-    Names a kind of card, never a concrete device: the CRN resolves the
-    requirement against the cards it probed in CC mode. The architecture is
-    what the client verifies from the GPU attestation itself (the device
-    certificate chain encodes it), so security never depends on the message
-    naming an exact model; `models` only narrows placement and pricing.
-    Driver and VBIOS pins live in the runtime manifest, properties of the
-    measured runtime. All cards share one architecture because that is the
-    only multi-GPU configuration NVIDIA supports inside a confidential VM.
-    """
-
-    vendor: Literal["nvidia"] = Field(
-        description="GPU vendor with a confidential-computing mode"
-    )
-    arch: Literal["hopper", "blackwell"] = Field(
-        description="GPU architecture family every attached card must belong to"
-    )
-    count: int = Field(
-        strict=True,
-        ge=1,
-        le=MAX_CONFIDENTIAL_GPUS,
-        description="Number of cards to attach, all of the same architecture",
-    )
-    models: Optional[List[str]] = Field(
-        default=None,
-        min_length=1,
-        max_length=MAX_CONFIDENTIAL_GPU_MODELS,
-        description=(
-            "Optional narrowing to specific card kinds, as lowercase PCI "
-            "vendor:device ids (e.g. 10de:2b85); absent means any card of the "
-            "architecture"
-        ),
-    )
-    # Required even though "cc" is the only value: check_content compares
-    # the model dump to the signed item_content, so a defaulted field would
-    # reject every hand-built content that omits it. Spelling it out also
-    # lets a weaker multi-GPU mode (Hopper's PPCIe, which leaves GPU-to-GPU
-    # links in the clear) join the enum later as an explicit opt-in.
-    mode: Literal["cc"] = Field(
-        description="Confidential-computing mode the cards must be in",
-    )
-
-    model_config = ConfigDict(extra="forbid")
-
-    @field_validator("models")
-    @classmethod
-    def check_models(cls, models: Optional[List[str]]) -> Optional[List[str]]:
-        if models is None:
-            return None
-        for device_id in models:
-            if not re.fullmatch(CONFIDENTIAL_GPU_DEVICE_ID_PATTERN, device_id):
-                raise ValueError(
-                    f"models entries must be lowercase PCI vendor:device ids, "
-                    f"got {device_id!r}"
-                )
-        if len(set(models)) != len(models):
-            raise ValueError("models must not repeat a device id")
-        return models
 
 
 class TeeVerification(HashableModel):
