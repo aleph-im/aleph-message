@@ -47,12 +47,16 @@ from aleph_message.models.execution.abstract import (
     MAX_VOLUMES,
 )
 from aleph_message.models.execution.environment import (
+    DEFAULT_SNP_POLICY,
     MAX_ADDRESS_REGEX_LENGTH,
+    MAX_CONFIDENTIAL_GPU_MODELS,
+    MAX_CONFIDENTIAL_GPUS,
     AMDSEVPolicy,
     GpuDeviceClass,
     GpuProperties,
     HypervisorType,
     NodeRequirements,
+    TrustedExecutionEnvironment,
 )
 from aleph_message.models.execution.volume import (
     MAX_VOLUME_LABEL_LENGTH,
@@ -236,7 +240,7 @@ CONFIDENTIAL_GPU_HOPPER: Dict[str, Any] = {
 def make_sev_snp_tee(**overrides: Any) -> Dict[str, Any]:
     tee = {
         "mode": "sev_snp",
-        "policy": 0x30000,
+        "policy": DEFAULT_SNP_POLICY,
         "runtime": SEV_SNP_ITEM_HASH,
         "measurements": [
             {"platform": "sev_snp", "registers": {"launch": SEV_SNP_LAUNCH_DIGEST}}
@@ -339,6 +343,25 @@ def test_sev_snp_instance_dump_omits_absent_gpu():
     assert "gpu" not in content.environment.trusted_execution.model_dump(
         exclude_none=True
     )
+
+
+def test_trusted_execution_schema_exposes_gpu_constraints():
+    schema = TrustedExecutionEnvironment.model_json_schema()
+    assert "gpu" in schema["properties"]
+    gpu = schema["$defs"]["ConfidentialGpuRequirement"]
+    assert gpu["required"] == ["vendor", "arch", "count", "mode"]
+    assert gpu["additionalProperties"] is False
+    assert gpu["properties"]["count"]["minimum"] == 1
+    assert gpu["properties"]["count"]["maximum"] == MAX_CONFIDENTIAL_GPUS
+    assert gpu["properties"]["arch"]["enum"] == ["hopper", "blackwell"]
+    assert gpu["properties"]["mode"]["const"] == "cc"
+    models = next(
+        variant
+        for variant in gpu["properties"]["models"]["anyOf"]
+        if variant.get("type") == "array"
+    )
+    assert models["minItems"] == 1
+    assert models["maxItems"] == MAX_CONFIDENTIAL_GPU_MODELS
 
 
 def test_instance_message_machine_with_gpu_options():

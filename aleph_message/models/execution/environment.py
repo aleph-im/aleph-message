@@ -461,6 +461,8 @@ class TrustedExecutionEnvironment(HashableModel):
                         f"{measurement.platform.value!r}, which does not match "
                         f"mode {self.mode!r}"
                     )
+            # Deliberately not `== "tdx"`: a new measured mode opts in to GPUs
+            # once its guest verifier exists, it does not get them by default.
             if self.gpu is not None and self.mode != "sev_snp":
                 raise ValueError("gpu is only supported in sev_snp mode")
             if self.mode == "sev_snp":
