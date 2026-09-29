@@ -1,5 +1,5 @@
 """Verifiable programs (V-Programs): auto-booting confidential VMs whose full
-software stack is attestable via SEV-SNP runtime attestation.
+software stack is attestable via SEV-SNP or Intel TDX runtime attestation.
 
 Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 """
@@ -137,15 +137,26 @@ class VerifiedVolume(HashableModel):
 
 
 class TeeVerification(HashableModel):
-    """TEE launch configuration plus supervisor-opaque measurement annotations."""
+    """TEE launch configuration plus supervisor-opaque measurement annotations.
 
-    backend: Literal["sev_snp"] = Field(description="TEE backend the VM launches with")
+    Two backends: "sev_snp" (AMD, `policy` is the SEV-SNP 64-bit guest
+    policy, one measurement per vcpu_type across a mixed fleet) and "tdx"
+    (Intel, no host-chosen launch policy, and the registers do not depend on
+    the CPU model so exactly one measurement is declared).
+    """
+
+    backend: Literal["sev_snp", "tdx"] = Field(
+        description="TEE backend the VM launches with"
+    )
     policy: int = Field(
         default=DEFAULT_SNP_POLICY,
         strict=True,
         ge=0,
         lt=1 << 64,
-        description="SEV-SNP 64-bit guest policy (not SEV bit semantics)",
+        description=(
+            "SEV-SNP 64-bit guest policy (not SEV bit semantics); left at its "
+            "default with the tdx backend"
+        ),
     )
     measurements: List[LaunchMeasurement] = Field(
         min_length=1,
@@ -155,8 +166,21 @@ class TeeVerification(HashableModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @property
+    def is_tdx(self) -> bool:
+        return self.backend == "tdx"
+
     @model_validator(mode="after")
     def check_policy(self) -> Self:
+        if self.is_tdx:
+            # TDATTRIBUTES and XFAM are set by the TDX module and measured,
+            # not selected; reject a value rather than invent a meaning.
+            if self.policy != DEFAULT_SNP_POLICY:
+                raise ValueError(
+                    "the tdx backend has no host-chosen launch policy; "
+                    "policy must be left at its default"
+                )
+            return self
         validate_snp_policy(self.policy)
         return self
 
@@ -171,6 +195,14 @@ class TeeVerification(HashableModel):
                     f"{measurement.platform.value!r}, which does not match "
                     f"backend {self.backend!r}"
                 )
+        # MRTD, RTMR1 and RTMR2 are functions of the runtime bundle alone and
+        # MRCONFIGID of this message, so a second entry could only disagree
+        # with the first.
+        if self.is_tdx and len(self.measurements) != 1:
+            raise ValueError(
+                "the tdx backend declares exactly one measurement: its "
+                "registers do not depend on the CPU model"
+            )
         return self
 
 
@@ -184,7 +216,8 @@ class VerifiableProgramEnvironment(HashableModel):
 
 class VerifiableProgramContent(BaseExecutableContent):
     """Message content for scheduling a verifiable program (V-Program): an
-    auto-booting SEV-SNP VM whose full software stack is attestable.
+    auto-booting confidential VM (SEV-SNP or Intel TDX) whose full software
+    stack is attestable.
 
     Unlike classic programs there is no code/entrypoint/triggers model (the
     workload contract belongs to the runtime bundle) and no hypervisor choice
@@ -238,7 +271,7 @@ class VerifiableProgramContent(BaseExecutableContent):
     # must keep parsing without it.
     gpu: Optional[ConfidentialGpuRequirement] = Field(
         default=None,
-        description="GPUs to attach in confidential-computing mode",
+        description="GPUs to attach in confidential-computing mode (sev_snp backend only)",
     )
 
     @property
@@ -291,4 +324,12 @@ class VerifiableProgramContent(BaseExecutableContent):
                 "unattested passthrough GPU has no place in an attested VM; "
                 "declare the cards in gpu instead"
             )
+        return self
+
+    @model_validator(mode="after")
+    def check_gpu_backend(self) -> Self:
+        # Deliberately not `== "tdx"`: a new backend opts in to GPUs once its
+        # guest verifier exists, it does not get them by default.
+        if self.gpu is not None and self.verification.backend != "sev_snp":
+            raise ValueError("gpu is only supported with the sev_snp backend")
         return self
