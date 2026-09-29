@@ -946,6 +946,16 @@ def test_trusted_execution_tdx_has_no_policy():
     assert reparsed == tee
 
 
+def test_trusted_execution_tdx_declares_exactly_one_measurement():
+    # Same rule as the V-PROGRAM backend: the registers do not depend on
+    # the CPU model, so a list could only disagree with itself.
+    tee = make_tdx_tee()
+    with pytest.raises(ValidationError, match="exactly one measurement"):
+        TrustedExecutionEnvironment.model_validate(
+            make_tdx_tee(measurements=tee["measurements"] * 2)
+        )
+
+
 def test_trusted_execution_measurement_platform_must_match_mode():
     # an sev_snp measurement under tdx mode (and vice versa) is incoherent
     with pytest.raises(ValidationError, match="does not match"):

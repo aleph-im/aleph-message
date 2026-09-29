@@ -476,6 +476,14 @@ class TrustedExecutionEnvironment(HashableModel):
                         "tdx mode has no host-chosen launch policy; "
                         "policy must be left at its default"
                     )
+                # MRTD, RTMR1 and RTMR2 are functions of the runtime bundle
+                # alone and MRCONFIGID of this message, so a second entry
+                # could only disagree with the first.
+                if len(self.measurements) != 1:
+                    raise ValueError(
+                        "tdx mode declares exactly one measurement: its "
+                        "registers do not depend on the CPU model"
+                    )
         else:
             for field_name in ("runtime", "measurements", "attestation_port", "gpu"):
                 if getattr(self, field_name) is not None:
