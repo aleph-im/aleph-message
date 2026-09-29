@@ -322,9 +322,9 @@ def test_tee_verification_tdx_valid():
     v = TeeVerification.model_validate(tdx_verification())
     assert v.is_tdx is True
     assert v.backend == "tdx"
-    # policy keeps its default: the field exists for sev_snp, nothing reads
-    # it on tdx
-    assert v.policy == DEFAULT_SNP_POLICY
+    # The field exists for sev_snp; a tdx block has none, on the wire too.
+    assert v.policy is None
+    assert "policy" not in v.model_dump(exclude_none=True)
     assert isinstance(v.measurements[0].registers, TdxRegisters)
     assert v.measurements[0].registers.mrconfigid == XEON6_TDX_REGISTERS["mrconfigid"]
     assert v.measurements[0].vcpu_type is None
@@ -335,10 +335,9 @@ def test_tee_verification_tdx_valid():
 
 
 def test_tee_verification_tdx_has_no_policy():
-    # Setting the default explicitly is indistinguishable from leaving it
-    # and stays valid; any other value is refused rather than interpreted.
-    TeeVerification.model_validate(tdx_verification(policy=DEFAULT_SNP_POLICY))
-    for policy in (0x1, 0x20000, 0x30001, 0):
+    # Any value, the SNP default included, is refused rather than
+    # interpreted: the key itself does not belong on a tdx block.
+    for policy in (DEFAULT_SNP_POLICY, 0x1, 0x20000, 0x30001, 0):
         with pytest.raises(ValidationError, match="no host-chosen launch policy"):
             TeeVerification.model_validate(tdx_verification(policy=policy))
 

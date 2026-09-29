@@ -6,7 +6,7 @@ Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import ConfigDict, Field, StrictBool, model_validator
 from typing_extensions import Self
@@ -141,21 +141,26 @@ class TeeVerification(HashableModel):
 
     Two backends: "sev_snp" (AMD, `policy` is the SEV-SNP 64-bit guest
     policy, one measurement per vcpu_type across a mixed fleet) and "tdx"
-    (Intel, no host-chosen launch policy, and the registers do not depend on
-    the CPU model so exactly one measurement is declared).
+    (Intel, no host-chosen launch policy so `policy` is absent from the
+    wire, and the registers do not depend on the CPU model so exactly one
+    measurement is declared).
     """
 
     backend: Literal["sev_snp", "tdx"] = Field(
         description="TEE backend the VM launches with"
     )
-    policy: int = Field(
-        default=DEFAULT_SNP_POLICY,
+    # Optional so a tdx message dumps without it: check_content compares
+    # the dump (exclude_none) to the signed item_content, and a defaulted
+    # int would have to be on the wire. sev_snp gets the default filled in
+    # before validation, so its behaviour is unchanged.
+    policy: Optional[int] = Field(
+        default=None,
         strict=True,
         ge=0,
         lt=1 << 64,
         description=(
-            "SEV-SNP 64-bit guest policy (not SEV bit semantics); left at its "
-            "default with the tdx backend"
+            "SEV-SNP 64-bit guest policy (not SEV bit semantics); absent with "
+            "the tdx backend"
         ),
     )
     measurements: List[LaunchMeasurement] = Field(
@@ -170,17 +175,26 @@ class TeeVerification(HashableModel):
     def is_tdx(self) -> bool:
         return self.backend == "tdx"
 
+    @model_validator(mode="before")
+    @classmethod
+    def default_snp_policy(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("backend") == "sev_snp":
+            data = {**data, "policy": data.get("policy", DEFAULT_SNP_POLICY)}
+        return data
+
     @model_validator(mode="after")
     def check_policy(self) -> Self:
         if self.is_tdx:
             # TDATTRIBUTES and XFAM are set by the TDX module and measured,
             # not selected; reject a value rather than invent a meaning.
-            if self.policy != DEFAULT_SNP_POLICY:
+            if self.policy is not None:
                 raise ValueError(
                     "the tdx backend has no host-chosen launch policy; "
-                    "policy must be left at its default"
+                    "policy must be absent"
                 )
             return self
+        if self.policy is None:
+            raise ValueError("the sev_snp backend requires policy")
         validate_snp_policy(self.policy)
         return self
 
