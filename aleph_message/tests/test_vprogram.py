@@ -1,4 +1,4 @@
-"""Tests for the V-PROGRAM message type and the SEV-SNP TEE extension.
+"""Tests for the V-PROGRAM message type and the SEV-SNP and TDX TEE extensions.
 
 Design: aleph-vm docs/plans/2026-07-08-confidential-vm-protocol-design.md
 """
@@ -288,6 +288,78 @@ def test_tee_verification_rejects_foreign_platform_measurements():
             backend="sev_snp",
             measurements=[LaunchMeasurement(platform="tdx", registers=tdx_registers())],
         )
+    # and an SNP launch digest says nothing about a tdx backend
+    with pytest.raises(ValidationError, match="does not match backend"):
+        TeeVerification(
+            backend="tdx",
+            measurements=[
+                LaunchMeasurement(platform="sev_snp", registers={"launch": SNP_DIGEST})
+            ],
+        )
+
+
+# Registers a TD quoted on a Xeon 6731E from aleph-vm's tdxImage runtime
+# (2026-09-29): MRTD from TDVF, RTMR1 from the kernel, RTMR2 from the cmdline
+# and initrd, MRCONFIGID = SHA-384 of the empty deployment descriptor.
+XEON6_TDX_REGISTERS = {
+    "mrtd": "d4f5ee3d5fe9a5a3cbb1df8c40946714f55d5918b9b0e9ecd82a1d8adeea668495901baee134e3152dd5e0e2d1781262",
+    "rtmr1": "8d91abe1ea40a7dba9dbd110eea6fff8e3c79d983a7cae359a046ec8ae339cfbfbed4298c66ec2bdbbf08abb9c63e5c8",
+    "rtmr2": "c785503b238756732626c8162997f514084d10d699b602bba0691dcbb94a97901acc63c8aea322af4946141573d0766e",
+    "mrconfigid": "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b",
+}
+
+
+def tdx_verification(**overrides) -> dict:
+    verification = {
+        "backend": "tdx",
+        "measurements": [{"platform": "tdx", "registers": XEON6_TDX_REGISTERS}],
+    }
+    verification.update(overrides)
+    return verification
+
+
+def test_tee_verification_tdx_valid():
+    v = TeeVerification.model_validate(tdx_verification())
+    assert v.is_tdx is True
+    assert v.backend == "tdx"
+    # The field exists for sev_snp; a tdx block has none, on the wire too.
+    assert v.policy is None
+    assert "policy" not in v.model_dump(exclude_none=True)
+    assert isinstance(v.measurements[0].registers, TdxRegisters)
+    assert v.measurements[0].registers.mrconfigid == XEON6_TDX_REGISTERS["mrconfigid"]
+    assert v.measurements[0].vcpu_type is None
+    assert (
+        TeeVerification.model_validate(make_vprogram_content()["verification"]).is_tdx
+        is False
+    )
+
+
+def test_tee_verification_tdx_has_no_policy():
+    # Any value, the SNP default included, is refused rather than
+    # interpreted: the key itself does not belong on a tdx block.
+    for policy in (DEFAULT_SNP_POLICY, 0x1, 0x20000, 0x30001, 0):
+        with pytest.raises(ValidationError, match="no host-chosen launch policy"):
+            TeeVerification.model_validate(tdx_verification(policy=policy))
+
+
+def test_tee_verification_tdx_declares_exactly_one_measurement():
+    with pytest.raises(ValidationError, match="exactly one measurement"):
+        TeeVerification.model_validate(
+            tdx_verification(
+                measurements=[
+                    {"platform": "tdx", "registers": XEON6_TDX_REGISTERS},
+                    {"platform": "tdx", "registers": tdx_registers()},
+                ]
+            )
+        )
+    with pytest.raises(ValidationError):
+        TeeVerification.model_validate(tdx_verification(measurements=[]))
+
+
+def test_tee_verification_backend_is_closed():
+    for backend in ("sev", "TDX", "sgx", "", None):
+        with pytest.raises(ValidationError):
+            TeeVerification.model_validate(tdx_verification(backend=backend))
 
 
 def test_vprogram_environment_defaults():
@@ -520,6 +592,53 @@ def test_vprogram_content_refuses_inherited_gpu_requirements():
                 }
             )
         )
+
+
+def test_vprogram_content_tdx_valid():
+    content = VerifiableProgramContent.model_validate(
+        make_vprogram_content(verification=tdx_verification())
+    )
+    assert content.verification.is_tdx is True
+    assert content.is_confidential is True
+    assert content.gpu is None
+    registers = content.verification.measurements[0].registers
+    assert isinstance(registers, TdxRegisters)
+    assert registers.mrtd == XEON6_TDX_REGISTERS["mrtd"]
+
+
+def test_vprogram_content_tdx_rejects_gpu():
+    # Confidential GPUs are an SEV-SNP feature: the TDX guest has no verifier
+    # for them yet, so a request pairing the two is refused at the schema.
+    with pytest.raises(
+        ValidationError, match="only supported with the sev_snp backend"
+    ):
+        VerifiableProgramContent.model_validate(
+            make_vprogram_content(verification=tdx_verification(), gpu=CONFIDENTIAL_GPU)
+        )
+
+
+def test_vprogram_tdx_message_round_trips_through_check_content():
+    # The publish path for a TDX V-PROGRAM: item_content and item_hash derived
+    # from the content, parsed back through the factory that re-checks the
+    # dump against the signed item_content. `policy` is absent on the wire.
+    path = Path(__file__).parent / "messages/vprogram_machine.json"
+    message_dict = json.loads(path.read_text())
+    message_dict["content"]["verification"] = tdx_verification()
+    message_dict["content"]["runtime"]["comment"] = "compose-runner tdx bundle"
+    add_item_content_and_hash(message_dict, inplace=True)
+    message = parse_message(message_dict)
+    assert isinstance(message, VerifiableProgramMessage)
+    assert message.content.verification.is_tdx is True
+    assert message.content.verification.measurements[0].registers.rtmr2 == (
+        XEON6_TDX_REGISTERS["rtmr2"]
+    )
+    assert "policy" not in json.loads(message.item_content)["verification"]
+
+
+def test_vprogram_schema_exposes_both_backends():
+    schema = VerifiableProgramContent.model_json_schema()
+    backend = schema["$defs"]["TeeVerification"]["properties"]["backend"]
+    assert backend["enum"] == ["sev_snp", "tdx"]
 
 
 def test_confidential_gpu_schema_exposes_constraints():
@@ -825,6 +944,16 @@ def test_trusted_execution_tdx_has_no_policy():
     tee = TrustedExecutionEnvironment.model_validate(make_tdx_tee())
     reparsed = TrustedExecutionEnvironment.model_validate(tee.model_dump())
     assert reparsed == tee
+
+
+def test_trusted_execution_tdx_declares_exactly_one_measurement():
+    # Same rule as the V-PROGRAM backend: the registers do not depend on
+    # the CPU model, so a list could only disagree with itself.
+    tee = make_tdx_tee()
+    with pytest.raises(ValidationError, match="exactly one measurement"):
+        TrustedExecutionEnvironment.model_validate(
+            make_tdx_tee(measurements=tee["measurements"] * 2)
+        )
 
 
 def test_trusted_execution_measurement_platform_must_match_mode():
